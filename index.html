@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>typed-storage test</title>
+</head>
+<body>
+    <script type="module">
+        import { createStorage } from './dist/index.js';
+
+        const appStorage = createStorage({
+            theme: 'dark',
+            fontSize: 16,
+            sidebarOpen: true,
+        }, { 
+            prefix: 'myapp',
+            ttl: 5000,       // expira en 5 segundos — para probar
+            sync: true
+        });
+
+        // Prueba 1 — valores iniciales
+        console.log('theme:', appStorage.theme());
+        console.log('fontSize:', appStorage.fontSize());
+
+        // Prueba 2 — set
+        appStorage.theme.set('light');
+        console.log('theme después de set:', appStorage.theme());
+
+        // Prueba 3 — reset
+        appStorage.theme.reset();
+        console.log('theme después de reset:', appStorage.theme());
+
+        // Prueba 4 — clear
+        appStorage.clear();
+        console.log('theme después de clear:', appStorage.theme());
+
+        // Prueba 5 — warning encrypt
+        const sensitiveStorage = createStorage({
+            token: '',
+        }, { encrypt: true });
+    </script>
+</body>
+</html>
