@@ -13,6 +13,8 @@
 
     // Other Outputs
     "sourceMap": false, // Para saber en que línea está el problema o dato que arroja en consola en mi TypeScript
+    "declaration": true,
+    "declarationDir": "./dist",
     "removeComments": true, // Esto es para remover o quitar los comentarios que coloque en el TS y que no aparezcan en el JS
     "esModuleInterop": true,
     "experimentalDecorators": true,

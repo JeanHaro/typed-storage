@@ -12,6 +12,8 @@ export interface StorageSignal<T> {
     (): T,                      // Leer el valor (como signal)
     set(value: T): void;        // escribir y persistir
     reset(): void;              // volver al valor inicial
+    remove(): void;             // borra la key del storage
+    has(): boolean;             // verifica si existe en storage
 }
 
 // El schema que el usuario define

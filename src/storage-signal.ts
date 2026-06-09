@@ -66,6 +66,11 @@ export function createStorageSignal<T>(
     const savedData = sto.getItem(key);
     let currentValue: T;
 
+    const listeners: Array<(value: T) => void> = [];
+    function notify ( value: T ): void {
+        listeners.forEach(cb => cb(value));
+    }
+
     // Asegurarnos que el item obtenido sea de tipo StoredValue
     const item = safeParseJSON(savedData!, initialValue);
 
@@ -79,7 +84,6 @@ export function createStorageSignal<T>(
             currentValue = initialValue;
         }
     }
-    
 
     const signalBase = function(): T {
         return currentValue;
@@ -92,12 +96,14 @@ export function createStorageSignal<T>(
             if ( event.key === key ) {
                 // Si el nuevo valor es null entonces se le asigna el initialValue
                 if ( event.newValue === null ) {
+                    notify(initialValue);
                     return  currentValue = initialValue;
                 } 
 
                 // Parseamos el nuevo valor
                 const item = safeParseJSON(event.newValue, initialValue);
 
+                notify(item.value as T);
                 return currentValue = item.value as T;
             }
         })
@@ -105,6 +111,7 @@ export function createStorageSignal<T>(
 
     signalBase.set = function ( newValue: T ): void {
         currentValue = newValue;
+        notify(currentValue);
         sto.setItem(
             key, 
             JSON.stringify({
@@ -116,7 +123,22 @@ export function createStorageSignal<T>(
 
     signalBase.reset = function(): void {
         currentValue = initialValue;
+        notify(currentValue);
         sto.setItem(key, JSON.stringify(initialValue));
+    }
+
+    signalBase.has = function(): boolean {
+        return !!sto.getItem(key);
+    }
+
+    signalBase.remove = function(): void {
+        sto.removeItem(key);
+        currentValue = initialValue;
+        notify(currentValue);
+    }
+
+    signalBase.onChange = function(callback: (value: T) => void): void {
+        listeners.push(callback);
     }
 
     return signalBase as StorageSignal<T>;

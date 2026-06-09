@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Type-safe localStorage with reactive signals",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "dev": "ts-node src/index.ts",
     "build": "tsc"

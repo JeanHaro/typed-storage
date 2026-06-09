@@ -37,6 +37,25 @@
         const sensitiveStorage = createStorage({
             token: '',
         }, { encrypt: true });
+
+        // Prueba has()
+        console.log('¿tiene theme?', appStorage.theme.has());
+
+        // Prueba onChange()
+        appStorage.theme.onChange((newValue) => {
+            console.log('theme cambió a:', newValue);
+        });
+
+        // Prueba set — debería disparar onChange
+        appStorage.theme.set('light');
+        appStorage.theme.set('dark');
+
+        // Prueba reset — debería disparar onChange
+        appStorage.theme.reset();
+
+        // Prueba remove — debería disparar onChange
+        appStorage.theme.remove();
+        console.log('¿tiene theme después de remove?', appStorage.theme.has());
     </script>
 </body>
 </html>
