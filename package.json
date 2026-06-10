@@ -1,6 +1,6 @@
 {
   "name": "@jeanharo98/typed-storage",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Type-safe localStorage with reactive signals",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,8 +23,16 @@
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.8",
     "jsdom": "^29.1.1",
-    "ts-node": "^10.9.2",
+    "ts-node": "^10.9.2", 
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JeanHaro/typed-storage.git"
+  },
+  "homepage": "https://github.com/JeanHaro/typed-storage#readme",
+  "bugs": {
+      "url": "https://github.com/JeanHaro/typed-storage/issues"
   }
 }
