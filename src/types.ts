@@ -14,6 +14,7 @@ export interface StorageSignal<T> {
     reset(): void;              // volver al valor inicial
     remove(): void;             // borra la key del storage
     has(): boolean;             // verifica si existe en storage
+    onChange(callback: ( value: T ) => void): void;
 }
 
 // El schema que el usuario define

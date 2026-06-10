@@ -30,5 +30,6 @@
     "./src/"
   ],
   "exclude": [
+    "src/**/*.test.ts"
   ]
 }
