@@ -297,8 +297,9 @@ Creates a storage object from a schema. Returns a `StorageResult<T>` with one `S
 |---------|-------------|
 | [@jeanharo98/typed-storage-angular](https://github.com/JeanHaro/typed-storage-angular) | Angular wrapper with native Signals |
 | [@jeanharo98/typed-storage-react](https://github.com/JeanHaro/typed-storage-react) | React wrapper with useStorage() hook |
-
+| [typed-storage-devtools](https://github.com/JeanHaro/typed-storage-devtools) | Chrome DevTools extension for real-time inspection |
 ---
+
 
 ## 📄 License
 
