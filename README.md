@@ -174,7 +174,42 @@ const appStorage = createStorage(schema, options);
 | `sync` | `boolean` | `false` | Sync values across browser tabs via `StorageEvent` |
 | `version` | `number` | — | Current schema version — required for migrations |
 | `migrations` | `Record<number, (data) => data>` | — | Migration functions per version |
+| `compress` | `boolean` | `false` | Compresses data with LZ-string before storing |
 | `encrypt` | `boolean` | `false` | Shows a security warning — see note below |
+
+---
+
+## 📦 Compression
+
+For large or repetitive data (lists, history, complex objects), enable compression to reduce the space used in `localStorage`:
+
+```typescript
+const appStorage = createStorage({
+    cart: { items: [] }
+}, {
+    prefix: 'shop',
+    compress: true
+});
+
+appStorage.cart.set({ items: [...manyProducts] });
+// Data is compressed with LZ-string before saving
+// and decompressed automatically when read
+```
+
+### When to use it
+
+```
+✅ Useful for:
+   - Large lists (shopping carts, history)
+   - Repetitive JSON structures
+   - Data approaching localStorage's ~5MB limit
+
+❌ Not needed for:
+   - Small values like theme, language, fontSize
+   - The compression overhead isn't worth it for tiny data
+```
+
+Compression only runs when `compress: true` is explicitly set — there's zero overhead for the default use case.
 
 ---
 
@@ -298,8 +333,8 @@ Creates a storage object from a schema. Returns a `StorageResult<T>` with one `S
 | [@jeanharo98/typed-storage-angular](https://github.com/JeanHaro/typed-storage-angular) | Angular wrapper with native Signals |
 | [@jeanharo98/typed-storage-react](https://github.com/JeanHaro/typed-storage-react) | React wrapper with useStorage() hook |
 | [typed-storage-devtools](https://github.com/JeanHaro/typed-storage-devtools) | Chrome DevTools extension for real-time inspection |
----
 
+---
 
 ## 📄 License
 

@@ -7,6 +7,7 @@ export interface StorageSignalOptions {
     encrypt?: boolean;
     version?: number;
     migrations?: Record<number, ( data: any ) => any>;
+    compress?: boolean;
 }
 
 // Objeto reactivo con getter, setter y reset

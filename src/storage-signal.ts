@@ -1,3 +1,5 @@
+import LZString from 'lz-string';
+
 // Tipos
 import { StorageSignal, StorageSignalOptions } from "./types.js";
 
@@ -33,7 +35,7 @@ function safeParseJSON<T>(value: string, fallback: T): StoredValue<T> {
     }
 } 
 
-// Obtenemos el valor del localStorage o SessionStorage, si sale error entonces se usará el MemoryStorage
+// Obtenemos el valor del localStorage o SessionStorage, sino MemoryStorage
 function getStorage(type: 'local' | 'session'): Storage | MemoryStorage {
     try {
         const sto = type === 'session' ? sessionStorage : localStorage;
@@ -63,7 +65,10 @@ export function createStorageSignal<T>(
         key = `${options.prefix}:${key}`;
     }
 
-    const savedData = sto.getItem(key);
+    const rawData = sto.getItem(key);
+    const savedData = options?.compress && rawData 
+                            ? LZString.decompress(rawData) 
+                            : rawData;
     let currentValue: T;
 
     const listeners: Array<(value: T) => void> = [];
@@ -101,7 +106,10 @@ export function createStorageSignal<T>(
                 } 
 
                 // Parseamos el nuevo valor
-                const item = safeParseJSON(event.newValue, initialValue);
+                const rawNewValue = options?.compress 
+                                        ? LZString.decompress(event.newValue)
+                                        : event.newValue;
+                const item = safeParseJSON(rawNewValue, initialValue);
 
                 notify(item.value as T);
                 return currentValue = item.value as T;
@@ -112,19 +120,29 @@ export function createStorageSignal<T>(
     signalBase.set = function ( newValue: T ): void {
         currentValue = newValue;
         notify(currentValue);
-        sto.setItem(
-            key, 
-            JSON.stringify({
-                value: newValue,
-                expiresAt: options?.ttl ? Date.now() + options.ttl : undefined
-            })
-        );
+        
+        const dataToStore = JSON.stringify({
+            value: newValue,
+            expiresAt: options?.ttl ? Date.now() + options.ttl : undefined
+        });
+
+        const finalData = options?.compress 
+                                ? LZString.compress(dataToStore) 
+                                : dataToStore;
+
+        sto.setItem( key, finalData );
     }
 
     signalBase.reset = function(): void {
         currentValue = initialValue;
         notify(currentValue);
-        sto.setItem(key, JSON.stringify(initialValue));
+        
+        const dataToStore = JSON.stringify(initialValue);
+        const finalData = options?.compress
+                                ? LZString.compress(dataToStore)
+                                : dataToStore;
+
+        sto.setItem(key, finalData);
     }
 
     signalBase.has = function(): boolean {

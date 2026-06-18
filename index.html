@@ -7,35 +7,28 @@
     <script type="module">
         import { createStorage } from './dist/index.js';
 
-        // Simula datos viejos en localStorage (schema v1)
-        localStorage.setItem('app:theme', '"dark"');
-        localStorage.setItem('app:fontSize', '16');
-        localStorage.setItem('app__version__', '1');
-
-        // Crea el storage con schema v2 y migración
-        const appStorage = createStorage({
-            theme: 'dark',
-            preferences: {
-                fontSize: 16,
-                language: 'es'
-            }
+        const compressedStorage = createStorage({
+            bigData: { items: [] }
         }, {
-            prefix: 'app',
-            version: 2,
-            migrations: {
-                1: (oldData) => ({
-                    theme: oldData.theme,
-                    preferences: {
-                        fontSize: oldData.fontSize,
-                        language: 'es'
-                    }
-                })
-            }
+            prefix: 'compressed',
+            compress: true
         });
 
-        console.log('theme:', appStorage.theme());
-        console.log('preferences:', appStorage.preferences());
-        console.log('version en localStorage:', localStorage.getItem('app__version__'));
+        // Genera datos grandes para probar
+        const bigArray = Array.from({ length: 100 }, (_, i) => ({
+            id: i,
+            name: `Item ${i}`,
+            description: 'Lorem ipsum dolor sit amet consectetur'
+        }));
+
+        compressedStorage.bigData.set({ items: bigArray });
+
+        console.log('Valor leído:', compressedStorage.bigData());
+        console.log('Tamaño en localStorage:', localStorage.getItem('compressed:bigData')?.length, 'caracteres');
+
+        // Compara con la versión sin comprimir
+        const uncompressedSize = JSON.stringify({ value: { items: bigArray } }).length;
+        console.log('Tamaño sin comprimir sería:', uncompressedSize, 'caracteres');
     </script>
 </body>
 </html>

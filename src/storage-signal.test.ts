@@ -85,3 +85,37 @@ describe('onChange', () => {
         expect(callback).toHaveBeenCalledWith('dark');
     });
 });
+
+describe('compress option', () => {
+    beforeEach(() => localStorage.clear());
+
+    it('debe comprimir y descomprimir correctamente', () => {
+        const signal = createStorageSignal<{ items: any[] }>(
+            'data', 
+            { items: [] }, 
+            { compress: true }
+        );
+        const bigData = { 
+            items: Array.from({ length: 50 }, 
+            (_, i) => ({ id: i })) 
+        };
+        
+        signal.set(bigData);
+        
+        expect(signal()).toEqual(bigData);
+    });
+
+    it('el dato comprimido debe ocupar menos espacio que sin comprimir', () => {
+        const compressed = createStorageSignal('data1', '', { compress: true, prefix: 'c1' });
+        const uncompressed = createStorageSignal('data2', '', { prefix: 'c2' });
+        
+        const repetitive = 'a'.repeat(1000);
+        compressed.set(repetitive);
+        uncompressed.set(repetitive);
+        
+        const compressedSize = localStorage.getItem('c1:data1')!.length;
+        const uncompressedSize = localStorage.getItem('c2:data2')!.length;
+        
+        expect(compressedSize).toBeLessThan(uncompressedSize);
+    });
+});
