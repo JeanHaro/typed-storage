@@ -1,6 +1,6 @@
 # typed-storage
 
-Type-safe `localStorage` and `sessionStorage` with a signal-like API, TTL support, cross-tab sync, and automatic fallback to memory when storage is unavailable.
+Type-safe `localStorage` and `sessionStorage` with a signal-like API, TTL support, cross-tab sync, schema migrations, and automatic fallback to memory when storage is unavailable.
 
 ```typescript
 const appStorage = createStorage({
@@ -14,12 +14,15 @@ appStorage.theme.set('purple');  // ❌ TypeScript error at compile time
 console.log(appStorage.theme()); // 'light' — persisted across reloads
 ```
 
+---
+
 ## ✨ Features
 
 - **Type-safe** — TypeScript infers types from your schema automatically
 - **Signal-like API** — read with `signal()`, write with `signal.set(value)`
 - **TTL / expiration** — keys expire automatically after a defined time
 - **Cross-tab sync** — changes in one tab reflect in others via `StorageEvent`
+- **Schema migrations** — safely transform data when your schema changes
 - **Memory fallback** — works even when `localStorage` is unavailable (Safari private mode, quota exceeded)
 - **Prefix namespacing** — avoid key collisions across apps or modules
 - **sessionStorage support** — opt in per schema
@@ -68,8 +71,91 @@ appStorage.theme.has();                // true
 appStorage.theme.remove();
 appStorage.theme.has();                // false
 
+// Subscribe to changes
+appStorage.theme.onChange((newValue) => {
+    console.log('theme changed to:', newValue);
+});
+
 // Clear all keys in the schema
 appStorage.clear();
+```
+
+---
+
+## 🔄 Schema Migrations
+
+When your schema changes between versions, migrations ensure users don't lose their data.
+
+```typescript
+// Version 1 — what users had stored:
+// localStorage['app:theme'] = '"dark"'
+// localStorage['app:fontSize'] = '16'
+
+// Version 2 — your new schema:
+const appStorage = createStorage({
+    theme: 'dark' as 'dark' | 'light',
+    preferences: {          // ← new nested object
+        fontSize: 16,
+        language: 'es'
+    }
+}, {
+    prefix: 'app',
+    version: 2,             // ← current schema version
+    migrations: {
+        1: (oldData) => ({  // ← transforms v1 data to v2
+            theme: oldData.theme,
+            preferences: {
+                fontSize: oldData.fontSize,  // moves fontSize inside preferences
+                language: 'es'              // adds new field with default
+            }
+        })
+    }
+});
+
+// Old data is automatically migrated on first load
+console.log(appStorage.preferences()); // { fontSize: 16, language: 'es' }
+```
+
+### Chained migrations (v1 → v2 → v3)
+
+```typescript
+createStorage(schema, {
+    prefix: 'app',
+    version: 3,
+    migrations: {
+        1: (data) => ({         // v1 → v2
+            theme: data.theme,
+            preferences: {
+                fontSize: data.fontSize,
+                language: 'es'
+            }
+        }),
+        2: (data) => ({         // v2 → v3
+            ...data,
+            preferences: {
+                ...data.preferences,
+                sidebarOpen: true  // adds new field in v3
+            }
+        })
+    }
+});
+```
+
+### How migrations work
+
+```
+1. On createStorage(), reads the saved version from localStorage
+   key: 'prefix__version__'
+
+2. If no version saved → new install, saves current version and continues
+
+3. If saved version < current version:
+   → reads all current data from localStorage
+   → applies each migration in order (v1→v2, v2→v3, etc.)
+   → saves migrated data back to localStorage
+   → updates the version key
+
+4. If saved version === current version → nothing to do
 ```
 
 ---
@@ -86,49 +172,9 @@ const appStorage = createStorage(schema, options);
 | `storage` | `'local' \| 'session'` | `'local'` | Use `sessionStorage` instead of `localStorage` |
 | `ttl` | `number` | — | Time to live in milliseconds — key expires after this time |
 | `sync` | `boolean` | `false` | Sync values across browser tabs via `StorageEvent` |
+| `version` | `number` | — | Current schema version — required for migrations |
+| `migrations` | `Record<number, (data) => data>` | — | Migration functions per version |
 | `encrypt` | `boolean` | `false` | Shows a security warning — see note below |
-
-### Prefix
-
-```typescript
-const appStorage = createStorage(
-  { theme: 'dark' },
-  { prefix: 'myapp' }
-);
-
-appStorage.theme.set('light');
-// Stored as: localStorage['myapp:theme'] = '"light"'
-```
-
-### TTL
-
-```typescript
-const appStorage = createStorage(
-  { authToken: '' },
-  { ttl: 3600000 } // expires in 1 hour
-);
-```
-
-### Cross-tab sync
-
-```typescript
-const appStorage = createStorage(
-  { theme: 'dark' },
-  { sync: true }
-);
-
-// When another tab calls appStorage.theme.set('light'),
-// this tab updates automatically
-```
-
-### sessionStorage
-
-```typescript
-const sessionData = createStorage(
-  { step: 1 },
-  { storage: 'session' }
-);
-```
 
 ---
 
@@ -175,71 +221,45 @@ typed-storage is designed for:
 
 ## 🅰️ Usage with Angular
 
-typed-storage is framework-agnostic. For Angular, wrap it in a service with native Signals:
-
-```typescript
-import { Service, signal } from '@angular/core';
-import { createStorage } from 'typed-storage';
-
-@Service()
-export class StorageService {
-  private _storage = createStorage({
-    theme: 'dark' as 'dark' | 'light',
-    language: 'es' as 'es' | 'en',
-    fontSize: 16,
-  }, {
-    prefix: 'app',
-    sync: true,
-  });
-
-  // Native Angular Signals — reactive in any scenario including zoneless
-  theme = signal(this._storage.theme());
-  language = signal(this._storage.language());
-  fontSize = signal(this._storage.fontSize());
-
-  setTheme(value: 'dark' | 'light') {
-    this._storage.theme.set(value);
-    this.theme.set(value);
-  }
-
-  setLanguage(value: 'es' | 'en') {
-    this._storage.language.set(value);
-    this.language.set(value);
-  }
-}
+```bash
+pnpm add @jeanharo98/typed-storage @jeanharo98/typed-storage-angular
 ```
 
-```html
-<p>Theme: {{ storageService.theme() }}</p>
-<button (click)="storageService.setTheme('light')">Light</button>
-<button (click)="storageService.setTheme('dark')">Dark</button>
+See [@jeanharo98/typed-storage-angular](https://github.com/JeanHaro/typed-storage-angular) for full documentation.
+
+```typescript
+@Service()
+export class StorageService {
+    storage: AppStorage;
+
+    constructor() {
+        const ts = new TypedStorageService();
+        this.storage = ts.initialize({
+            theme: 'dark' as 'dark' | 'light',
+            language: 'es' as 'es' | 'en',
+        }, { prefix: 'app', sync: true }) as unknown as AppStorage;
+    }
+}
 ```
 
 ---
 
 ## ⚛️ Usage with React
 
+```bash
+pnpm add @jeanharo98/typed-storage @jeanharo98/typed-storage-react
+```
+
+See [@jeanharo98/typed-storage-react](https://github.com/JeanHaro/typed-storage-react) for full documentation.
+
 ```typescript
-import { useState, useEffect } from 'react';
-import { createStorage } from 'typed-storage';
+function App() {
+    const storage = useStorage({
+        theme: 'dark' as 'dark' | 'light',
+        language: 'es' as 'es' | 'en',
+    }, { prefix: 'app', sync: true });
 
-const appStorage = createStorage({
-  theme: 'dark' as 'dark' | 'light',
-});
-
-export function useTheme() {
-  const [theme, setThemeState] = useState(appStorage.theme());
-
-  useEffect(() => {
-    appStorage.theme.onChange(setThemeState);
-  }, []);
-
-  const setTheme = (value: 'dark' | 'light') => {
-    appStorage.theme.set(value);
-    setThemeState(value);
-  };
-
-  return { theme, setTheme };
+    return <p>Theme: {storage.theme}</p>;
 }
 ```
 
@@ -268,6 +288,15 @@ Creates a storage object from a schema. Returns a `StorageResult<T>` with one `S
 |--------|-------------|
 | `[key]` | One `StorageSignal` per schema key |
 | `clear()` | Calls `reset()` on all keys in the schema |
+
+---
+
+## 🔗 Related packages
+
+| Package | Description |
+|---------|-------------|
+| [@jeanharo98/typed-storage-angular](https://github.com/JeanHaro/typed-storage-angular) | Angular wrapper with native Signals |
+| [@jeanharo98/typed-storage-react](https://github.com/JeanHaro/typed-storage-react) | React wrapper with useStorage() hook |
 
 ---
 

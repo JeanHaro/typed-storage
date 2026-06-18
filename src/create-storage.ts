@@ -1,10 +1,28 @@
+// Types
 import { StorageSchema, StorageResult, StorageSignalOptions } from './types.js';
+
+// Storage Signal
 import { createStorageSignal } from './storage-signal.js';
+
+// Migraciones
+import { applyMigrations } from './migrations.js';
 
 export function createStorage<T extends StorageSchema>(
     schema: T,
     options?: StorageSignalOptions
 ): StorageResult<T> {
+    if ( options?.version && options.migrations ) {
+        const sto = options.storage === 'session' ? sessionStorage : localStorage;
+        const prefix = options.prefix ?? '';
+
+        applyMigrations(
+            prefix,
+            options.version,
+            options.migrations,
+            sto
+        );
+    }
+
     if ( options?.encrypt ) {
         console.warn(`
 ⚠️  typed-storage: la opción encrypt está activada.

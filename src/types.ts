@@ -5,6 +5,8 @@ export interface StorageSignalOptions {
     ttl?: number;
     sync?: boolean;
     encrypt?: boolean;
+    version?: number;
+    migrations?: Record<number, ( data: any ) => any>;
 }
 
 // Objeto reactivo con getter, setter y reset

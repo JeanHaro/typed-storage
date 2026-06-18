@@ -7,55 +7,35 @@
     <script type="module">
         import { createStorage } from './dist/index.js';
 
+        // Simula datos viejos en localStorage (schema v1)
+        localStorage.setItem('app:theme', '"dark"');
+        localStorage.setItem('app:fontSize', '16');
+        localStorage.setItem('app__version__', '1');
+
+        // Crea el storage con schema v2 y migración
         const appStorage = createStorage({
             theme: 'dark',
-            fontSize: 16,
-            sidebarOpen: true,
-        }, { 
-            prefix: 'myapp',
-            ttl: 5000,       // expira en 5 segundos — para probar
-            sync: true
+            preferences: {
+                fontSize: 16,
+                language: 'es'
+            }
+        }, {
+            prefix: 'app',
+            version: 2,
+            migrations: {
+                1: (oldData) => ({
+                    theme: oldData.theme,
+                    preferences: {
+                        fontSize: oldData.fontSize,
+                        language: 'es'
+                    }
+                })
+            }
         });
 
-        // Prueba 1 — valores iniciales
         console.log('theme:', appStorage.theme());
-        console.log('fontSize:', appStorage.fontSize());
-
-        // Prueba 2 — set
-        appStorage.theme.set('light');
-        console.log('theme después de set:', appStorage.theme());
-
-        // Prueba 3 — reset
-        appStorage.theme.reset();
-        console.log('theme después de reset:', appStorage.theme());
-
-        // Prueba 4 — clear
-        appStorage.clear();
-        console.log('theme después de clear:', appStorage.theme());
-
-        // Prueba 5 — warning encrypt
-        const sensitiveStorage = createStorage({
-            token: '',
-        }, { encrypt: true });
-
-        // Prueba has()
-        console.log('¿tiene theme?', appStorage.theme.has());
-
-        // Prueba onChange()
-        appStorage.theme.onChange((newValue) => {
-            console.log('theme cambió a:', newValue);
-        });
-
-        // Prueba set — debería disparar onChange
-        appStorage.theme.set('light');
-        appStorage.theme.set('dark');
-
-        // Prueba reset — debería disparar onChange
-        appStorage.theme.reset();
-
-        // Prueba remove — debería disparar onChange
-        appStorage.theme.remove();
-        console.log('¿tiene theme después de remove?', appStorage.theme.has());
+        console.log('preferences:', appStorage.preferences());
+        console.log('version en localStorage:', localStorage.getItem('app__version__'));
     </script>
 </body>
 </html>
