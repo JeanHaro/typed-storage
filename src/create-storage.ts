@@ -7,10 +7,25 @@ import { createStorageSignal } from './storage-signal.js';
 // Migraciones
 import { applyMigrations } from './migrations.js';
 
+function registerPrefix (
+    prefix: string,
+    sto: Storage
+): void {
+    const registryKey = '__typed-storage__';
+    const existing = sto.getItem(registryKey);
+    const prefixes: string[] = existing ? JSON.parse(existing) : [];
+
+    if ( prefix && !prefixes.includes(prefix) ) {
+        prefixes.push(prefix);
+        sto.setItem(registryKey, JSON.stringify(prefixes));
+    }
+}
+
 export function createStorage<T extends StorageSchema>(
     schema: T,
     options?: StorageSignalOptions
 ): StorageResult<T> {
+    // Migraciones
     if ( options?.version && options.migrations ) {
         const sto = options.storage === 'session' ? sessionStorage : localStorage;
         const prefix = options.prefix ?? '';
@@ -22,6 +37,10 @@ export function createStorage<T extends StorageSchema>(
             sto
         );
     }
+
+    // Registramos el prefix en localStorage
+    const sto = options?.storage === 'session' ? sessionStorage : localStorage;
+    registerPrefix(options?.prefix ?? '', sto);
 
     if ( options?.encrypt ) {
         console.warn(`
