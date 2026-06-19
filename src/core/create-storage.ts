@@ -1,11 +1,15 @@
 // Types
-import { StorageSchema, StorageResult, StorageSignalOptions } from './types.js';
+import { 
+    StorageSchema, 
+    StorageResult, 
+    StorageSignalOptions 
+} from '../types.js';
 
 // Storage Signal
 import { createStorageSignal } from './storage-signal.js';
 
 // Migraciones
-import { applyMigrations } from './migrations.js';
+import { applyMigrations } from '../features/migrations.js';
 
 function registerPrefix (
     prefix: string,

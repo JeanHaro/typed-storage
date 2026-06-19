@@ -1,13 +1,19 @@
 import LZString from 'lz-string';
 
 // Tipos
-import { StorageSignal, StorageSignalOptions } from "./types.js";
+import { 
+    StorageSignal, 
+    StorageSignalOptions 
+} from "../types.js";
 
 // Memory
 import { MemoryStorage } from "./memory-storage.js";
 
 // Xor
-import { xorEncrypt, xorDecrypt } from './xor.js';
+import { 
+    xorEncrypt, 
+    xorDecrypt 
+} from '../features/xor.js';
 
 // Interface
 interface StoredValue<T> {
