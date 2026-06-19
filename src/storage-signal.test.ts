@@ -119,3 +119,43 @@ describe('compress option', () => {
         expect(compressedSize).toBeLessThan(uncompressedSize);
     });
 });
+
+describe('encrypt option', () => {
+    beforeEach(() => localStorage.clear());
+
+    it('debe ofuscar el valor guardado en localStorage', () => {
+        const signal = createStorageSignal('token', '', {
+            encrypt: true,
+            secret: 'mi-clave'
+        });
+
+        signal.set('eyJhbGciOiJIUzI1NiJ9.test.jwt');
+
+        const rawStored = localStorage.getItem('token');
+        // El valor crudo NO debe contener el JWT en texto plano
+        expect(rawStored).not.toContain('eyJhbGciOiJIUzI1NiJ9');
+    });
+
+    it('debe desencriptar correctamente al leer', () => {
+        const signal = createStorageSignal('token', '', {
+            encrypt: true,
+            secret: 'mi-clave'
+        });
+
+        const originalValue = 'eyJhbGciOiJIUzI1NiJ9.test.jwt';
+        signal.set(originalValue);
+
+        expect(signal()).toBe(originalValue);
+    });
+
+    it('debe funcionar junto con TTL', () => {
+        const signal = createStorageSignal('token', '', {
+            encrypt: true,
+            secret: 'mi-clave',
+            ttl: 1000
+        });
+
+        signal.set('mi-token');
+        expect(signal()).toBe('mi-token');
+    });
+});

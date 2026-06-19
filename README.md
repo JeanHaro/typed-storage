@@ -224,7 +224,8 @@ const appStorage = createStorage(schema, options);
 | `version` | `number` | — | Current schema version — required for migrations |
 | `migrations` | `Record<number, (data) => data>` | — | Migration functions per version |
 | `compress` | `boolean` | `false` | Compresses data with LZ-string before storing |
-| `encrypt` | `boolean` | `false` | Shows a security warning — see note below |
+| `encrypt` | `boolean` | `false` | Obfuscates data with XOR + Base64 — see security note below |
+| `secret` | `string` | — | Required when `encrypt: true` — the obfuscation key |
 
 ---
 
@@ -279,27 +280,79 @@ appStorage.theme.remove();     // → 'theme changed to: dark' (initialValue)
 
 ---
 
-## 🔒 A note on encryption
+## 🔒 Encryption (XOR obfuscation)
 
-If you pass `encrypt: true`, typed-storage will display a warning explaining why encrypting values in `localStorage` is not a secure practice — the encryption key must live in the frontend and is accessible to anyone who inspects your code.
+`typed-storage` can obfuscate values using XOR + Base64 before storing them. This is **not real cryptography** — read this section carefully before using it.
 
-For sensitive data such as auth tokens or personal information, use **httpOnly cookies** set by your server:
+```typescript
+const secureStorage = createStorage({
+    token: ''
+}, {
+    encrypt: true,
+    secret: 'your-secret-key',  // required when encrypt is true
+    ttl: 3600000                // recommended — expire alongside your real token
+});
+
+secureStorage.token.set('eyJhbGciOiJIUzI1NiJ9.xxx.yyy');
+// Stored in localStorage as obfuscated text, not the readable JWT
+
+const token = secureStorage.token();
+// Automatically decrypted — returns the real JWT
+```
+
+### ⚠️ What this actually protects against
+
+```
+✅ Hides the value from casual inspection in DevTools/Application/Storage
+✅ Discourages non-technical users from reading or copying the value
+✅ Combined with ttl, expires alongside your backend token
+
+❌ Does NOT protect against a technical attacker
+❌ Does NOT protect against debugger breakpoints — the secret and
+   decrypted value are visible in memory while the app runs
+❌ Is NOT equivalent to real cryptography (AES, etc.)
+```
+
+### Why this limitation exists — and why no frontend library can fix it
+
+The `secret` you pass lives in your JavaScript code, which runs in the user's browser. No matter the algorithm used (XOR, AES, anything), **the key must be present in the frontend to decrypt the value**, which means it's always inspectable:
+
+```
+1. The secret travels safely over HTTPS — that's not the problem
+2. Once it reaches the browser, it must be used by your JS to decrypt
+3. Anyone with DevTools open can set a breakpoint where decryption
+   happens and read the secret and the decrypted value directly
+4. This is true even with industry-standard encryption (Web Crypto AES) —
+   the algorithm's strength doesn't matter if the key is exposed
+```
+
+This is a fundamental limitation of any frontend-only encryption — not a flaw specific to typed-storage's XOR implementation.
+
+### For real security with auth tokens
 
 ```typescript
 // In your backend (Express / NestJS):
 res.cookie('authToken', token, {
-  httpOnly: true,   // not accessible from JavaScript
-  secure: true,     // HTTPS only
-  sameSite: 'strict'
+    httpOnly: true,   // JavaScript cannot read this — ever
+    secure: true,     // HTTPS only
+    sameSite: 'strict'
 });
 ```
 
-typed-storage is designed for:
-- ✅ UI preferences (theme, language, font size)
-- ✅ Navigation state (last visited, sidebar open)
-- ✅ Non-sensitive user settings
-- ❌ Auth tokens → use httpOnly cookies
-- ❌ Passwords or financial data → never in localStorage
+httpOnly cookies are the only approach where the token never becomes accessible to JavaScript running in the browser — because the browser itself enforces the restriction, not your code.
+
+### When `encrypt` is still worth using
+
+```
+✅ You understand it's obfuscation, not security
+✅ You want to deter casual inspection, not block determined attackers
+✅ You're combining it with ttl so values expire predictably
+✅ The data isn't critical enough to justify httpOnly cookie infrastructure
+   (e.g. you're prototyping, or it's a low-stakes internal tool)
+
+❌ Don't rely on this alone for banking, healthcare, or any data where
+   a breach has real consequences — use httpOnly cookies on the backend
+```
 
 ---
 

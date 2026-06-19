@@ -5,6 +5,7 @@ export interface StorageSignalOptions {
     ttl?: number;
     sync?: boolean;
     encrypt?: boolean;
+    secret?: string; // Requerido si el encrypt es true
     version?: number;
     migrations?: Record<number, ( data: any ) => any>;
     compress?: boolean;

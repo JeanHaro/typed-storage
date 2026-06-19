@@ -5,41 +5,20 @@
 </head>
 <body>
     <script type="module">
-        import { createHeavyStorage } from './dist/index.js';
+        import { createStorage } from './dist/index.js';
 
-        const heavyStorage = createHeavyStorage({
-            documents: [],
-            userPhotos: []
+        const secureStorage = createStorage({
+            token: ''
         }, {
-            dbName: 'test-heavy-storage'
+            prefix: 'secure',
+            encrypt: true,
+            secret: 'mi-clave-secreta',
+            ttl: 3600000
         });
 
-        async function test() {
-            // Set
-            await heavyStorage.documents.set([
-                { id: 1, name: 'Documento 1' },
-                { id: 2, name: 'Documento 2' }
-            ]);
-            console.log('✅ Documentos guardados');
-
-            // Get
-            const docs = await heavyStorage.documents.get();
-            console.log('📄 Documentos leídos:', docs);
-
-            // onChange
-            heavyStorage.documents.onChange((newValue) => {
-                console.log('🔔 documents cambió a:', newValue);
-            });
-
-            await heavyStorage.documents.set([{ id: 3, name: 'Documento nuevo' }]);
-
-            // Remove
-            await heavyStorage.userPhotos.remove();
-            const photos = await heavyStorage.userPhotos.get();
-            console.log('🗑️ userPhotos después de remove:', photos);
-        }
-
-        test();
+        secureStorage.token.set('eyJhbGciOiJIUzI1NiJ9.test.jwt');
+        console.log('Valor leído:', secureStorage.token());
+        console.log('Valor en localStorage (debe estar ofuscado):', localStorage.getItem('secure:token'));
     </script>
 </body>
 </html>

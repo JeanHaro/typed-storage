@@ -42,25 +42,6 @@ export function createStorage<T extends StorageSchema>(
     const sto = options?.storage === 'session' ? sessionStorage : localStorage;
     registerPrefix(options?.prefix ?? '', sto);
 
-    if ( options?.encrypt ) {
-        console.warn(`
-⚠️  typed-storage: la opción encrypt está activada.
-
-Encriptar valores en localStorage no es seguro — 
-la clave vive en el frontend y cualquier dev puede accederla.
-
-Para datos sensibles usa:
-    ✅ httpOnly cookies (tokens, sesiones)
-    ✅ Variables de entorno en el servidor
-  
-typed-storage es ideal para:
-    ✅ Preferencias de UI (theme, language)
-    ✅ Estado de navegación
-    ❌ Tokens de autenticación
-    ❌ Datos financieros o personales sensibles
-        `);
-    }
-
     const result: any = [];
 
     let keys = Object.keys(schema);

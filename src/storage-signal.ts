@@ -6,6 +6,9 @@ import { StorageSignal, StorageSignalOptions } from "./types.js";
 // Memory
 import { MemoryStorage } from "./memory-storage.js";
 
+// Xor
+import { xorEncrypt, xorDecrypt } from './xor.js';
+
 // Interface
 interface StoredValue<T> {
     value: T;
@@ -66,9 +69,18 @@ export function createStorageSignal<T>(
     }
 
     const rawData = sto.getItem(key);
-    const savedData = options?.compress && rawData 
+    let savedData = options?.compress && rawData 
                             ? LZString.decompress(rawData) 
                             : rawData;
+
+    // Desencripta si encrypt está activo
+    if ( options?.encrypt && options?.secret && savedData ) {
+        try {
+            savedData = xorDecrypt(savedData, options.secret);
+        } catch {
+            savedData = null; // si falla desencriptar, trata como vacío
+        }
+    }
     let currentValue: T;
 
     const listeners: Array<(value: T) => void> = [];
@@ -106,9 +118,17 @@ export function createStorageSignal<T>(
                 } 
 
                 // Parseamos el nuevo valor
-                const rawNewValue = options?.compress 
+                let rawNewValue = options?.compress 
                                         ? LZString.decompress(event.newValue)
                                         : event.newValue;
+
+                if ( options?.encrypt && options?.secret ) {
+                    try {
+                        rawNewValue = xorDecrypt(rawNewValue, options.secret);
+                    } catch {
+                        rawNewValue = '';
+                    }
+                }
                 const item = safeParseJSON(rawNewValue, initialValue);
 
                 notify(item.value as T);
@@ -126,9 +146,13 @@ export function createStorageSignal<T>(
             expiresAt: options?.ttl ? Date.now() + options.ttl : undefined
         });
 
-        const finalData = options?.compress 
+        let finalData = options?.compress 
                                 ? LZString.compress(dataToStore) 
                                 : dataToStore;
+
+        if ( options?.encrypt && options?.secret ) {
+            finalData = xorEncrypt(finalData, options.secret);
+        }
 
         sto.setItem( key, finalData );
     }
