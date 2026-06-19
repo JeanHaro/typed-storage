@@ -160,6 +160,27 @@ createStorage(schema, {
 
 ---
 
+## 🔍 Schema type registry
+
+`createStorage()` automatically registers the primitive type of each schema key in a special localStorage entry:
+
+```typescript
+createStorage({
+    theme: 'dark' as 'dark' | 'light',
+    sidebarOpen: true,
+    fontSize: 16
+}, { prefix: 'app' });
+
+// Automatically stored in localStorage as:
+// localStorage['__typed-storage-schema__'] = {
+//     "app": { "theme": "string", "sidebarOpen": "boolean", "fontSize": "number" }
+// }
+```
+
+You don't need to do anything for this — it happens automatically from the schema you already define. This registry exists so tools like [typed-storage-devtools](https://github.com/JeanHaro/typed-storage-devtools) can validate edits before they're saved, preventing things like setting `sidebarOpen` to the string `"trues"` when it should be a boolean.
+
+> Note: this captures the primitive type (`string`, `number`, `boolean`, `object`) via `typeof`, not the specific literal union (`'dark' | 'light'`) — that information doesn't exist in compiled JavaScript, only at TypeScript compile time.
+
 ## 🗄️ Heavy data with IndexedDB
 
 For large datasets that exceed `localStorage`'s ~5MB limit (file lists, extensive history, large collections), use `createHeavyStorage` — a separate async API backed by IndexedDB.
