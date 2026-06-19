@@ -160,7 +160,56 @@ createStorage(schema, {
 
 ---
 
-## ⚙️ Options
+## 🗄️ Heavy data with IndexedDB
+
+For large datasets that exceed `localStorage`'s ~5MB limit (file lists, extensive history, large collections), use `createHeavyStorage` — a separate async API backed by IndexedDB.
+
+```typescript
+import { createHeavyStorage } from 'typed-storage';
+
+const heavyStorage = createHeavyStorage({
+    documents: [] as Document[],
+    userPhotos: [] as Photo[]
+}, {
+    dbName: 'myapp-storage',
+    ttl: 86400000  // optional — same TTL support as the sync API
+});
+
+// All operations are async — IndexedDB is asynchronous by nature
+await heavyStorage.documents.set([...manyDocuments]);
+const docs = await heavyStorage.documents.get();
+await heavyStorage.documents.remove();
+
+heavyStorage.documents.onChange((newValue) => {
+    console.log('documents changed:', newValue);
+});
+
+await heavyStorage.clear();
+```
+
+### Why a separate API?
+
+`createStorage()` uses a synchronous Signal-like API by design — that's the core value of typed-storage. IndexedDB is asynchronous by nature, so mixing it into the same API would break that synchronous contract.
+
+```
+createStorage()       → sync, Signal-like, for UI preferences and small state
+createHeavyStorage()  → async, Promise-based, for large datasets
+```
+
+If you only need small values (theme, language, settings), stick with `createStorage()`. Use `createHeavyStorage()` only when you specifically need to store data beyond localStorage's size limits.
+
+### `HeavySignal<T>` API
+
+| Member | Description |
+|--------|-------------|
+| `signal.get()` | Returns a Promise with the current value |
+| `signal.set(value)` | Stores the value, returns a Promise |
+| `signal.remove()` | Deletes the value, returns a Promise |
+| `signal.onChange(cb)` | Subscribes to value changes (called synchronously after set/remove) |
+
+---
+
+
 
 ```typescript
 const appStorage = createStorage(schema, options);

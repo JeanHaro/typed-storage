@@ -5,30 +5,41 @@
 </head>
 <body>
     <script type="module">
-        import { createStorage } from './dist/index.js';
+        import { createHeavyStorage } from './dist/index.js';
 
-        const compressedStorage = createStorage({
-            bigData: { items: [] }
+        const heavyStorage = createHeavyStorage({
+            documents: [],
+            userPhotos: []
         }, {
-            prefix: 'compressed',
-            compress: true
+            dbName: 'test-heavy-storage'
         });
 
-        // Genera datos grandes para probar
-        const bigArray = Array.from({ length: 100 }, (_, i) => ({
-            id: i,
-            name: `Item ${i}`,
-            description: 'Lorem ipsum dolor sit amet consectetur'
-        }));
+        async function test() {
+            // Set
+            await heavyStorage.documents.set([
+                { id: 1, name: 'Documento 1' },
+                { id: 2, name: 'Documento 2' }
+            ]);
+            console.log('✅ Documentos guardados');
 
-        compressedStorage.bigData.set({ items: bigArray });
+            // Get
+            const docs = await heavyStorage.documents.get();
+            console.log('📄 Documentos leídos:', docs);
 
-        console.log('Valor leído:', compressedStorage.bigData());
-        console.log('Tamaño en localStorage:', localStorage.getItem('compressed:bigData')?.length, 'caracteres');
+            // onChange
+            heavyStorage.documents.onChange((newValue) => {
+                console.log('🔔 documents cambió a:', newValue);
+            });
 
-        // Compara con la versión sin comprimir
-        const uncompressedSize = JSON.stringify({ value: { items: bigArray } }).length;
-        console.log('Tamaño sin comprimir sería:', uncompressedSize, 'caracteres');
+            await heavyStorage.documents.set([{ id: 3, name: 'Documento nuevo' }]);
+
+            // Remove
+            await heavyStorage.userPhotos.remove();
+            const photos = await heavyStorage.userPhotos.get();
+            console.log('🗑️ userPhotos después de remove:', photos);
+        }
+
+        test();
     </script>
 </body>
 </html>
