@@ -29,4 +29,6 @@ export type StorageResult<T extends StorageSchema> = {
     [K in keyof T]: StorageSignal<T[K]>
 } & {
     clear(): void;
+    destroy(): void;
+    batch(values: Partial<T>): void;
 }

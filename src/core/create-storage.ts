@@ -8,6 +8,9 @@ import {
 // Storage Signal
 import { createStorageSignal } from './storage-signal.js';
 
+// Validaciones
+import { validateOptions } from './validate-options.js';
+
 // Migraciones
 import { applyMigrations } from '../features/migrations.js';
 
@@ -47,6 +50,11 @@ export function createStorage<T extends StorageSchema>(
     schema: T,
     options?: StorageSignalOptions
 ): StorageResult<T> {
+    const errors = validateOptions(options);
+    if ( errors.length > 0 ) {
+        throw new Error(`typed-storage: opciones inválidas:\n- ${errors.join('\n- ')}`);
+    }
+
     // Migraciones
     if ( options?.version && options.migrations ) {
         const sto = options.storage === 'session' ? sessionStorage : localStorage;
@@ -75,6 +83,20 @@ export function createStorage<T extends StorageSchema>(
     result.clear = () => {
         for ( let key of keys ) {
             result[key].reset(); // Limpiamos todas las keys del schema
+        }
+    }
+
+    result.destroy = () => {
+        for (let key of keys) {
+            result[key].remove(); 
+        }
+    }
+
+    result.batch = (values: Partial<T>) => {
+        for (const key of Object.keys(values)) {
+            if (result[key]) {
+                result[key].set((values as any)[key]);
+            }
         }
     }
 
