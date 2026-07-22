@@ -27,6 +27,10 @@ console.log(appStorage.theme()); // 'light' — persisted across reloads
 - **Prefix namespacing** — avoid key collisions across apps or modules
 - **sessionStorage support** — opt in per schema
 - **onChange** — subscribe to value changes with a callback
+- **`batch()`** — update multiple keys in a single call
+- **`computed()`** — derive reactive values from one or more signals
+- **`destroy()`** — completely remove scoped/temporary data
+- **Options validation** — clear errors for invalid configuration, thrown early
 - **Zero dependencies** — pure TypeScript, no external packages
 
 ---
@@ -76,9 +80,171 @@ appStorage.theme.onChange((newValue) => {
     console.log('theme changed to:', newValue);
 });
 
-// Clear all keys in the schema
+// Clear all keys in the schema (resets to initialValue, keys still exist)
 appStorage.clear();
 ```
+
+---
+
+## 📦 Batch updates
+
+Update multiple keys in a single call instead of calling `.set()` on each one separately:
+
+```typescript
+const appStorage = createStorage({
+    theme: 'dark' as 'dark' | 'light',
+    fontSize: 16,
+    language: 'es' as 'es' | 'en',
+});
+
+// Instead of this:
+appStorage.theme.set('light');
+appStorage.fontSize.set(20);
+appStorage.language.set('en');
+
+// Do this:
+appStorage.batch({
+    theme: 'light',
+    fontSize: 20,
+    language: 'en'
+});
+```
+
+Useful for forms with several fields saved at once (e.g. a "Preferences" screen with a single "Save" button), where writing multiple `.set()` calls is repetitive.
+
+```typescript
+appStorage.batch({
+    theme: 'light',   // updated
+    fontSize: 20       // updated
+    // language is not included — stays unchanged
+});
+```
+
+Each updated key still fires its own `onChange` callback and persists individually.
+
+---
+
+## 🧮 Computed values
+
+Derive a reactive value from one or more existing signals, without duplicating calculation logic across your code:
+
+```typescript
+import { createStorage, computed } from 'typed-storage';
+
+const userStorage = createStorage({
+    firstName: 'Jean',
+    lastName: 'Haro'
+});
+
+const fullName = computed(
+    [userStorage.firstName, userStorage.lastName],
+    (first, last) => `${first} ${last}`
+);
+
+fullName(); // → 'Jean Haro'
+
+userStorage.firstName.set('Jeanpierre');
+fullName(); // → 'Jeanpierre Haro' — recalculated automatically
+```
+
+Another example — a cart total that always reflects the current state:
+
+```typescript
+const cartStorage = createStorage({
+    items: [] as { price: number; quantity: number }[]
+});
+
+const total = computed(
+    [cartStorage.items],
+    (items) => items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+);
+
+cartStorage.items.set([{ price: 10, quantity: 2 }]);
+total(); // → 20
+
+cartStorage.items.set([{ price: 10, quantity: 5 }]);
+total(); // → 50 — recalculated automatically
+```
+
+`computed()` doesn't cache anything internally — it recomputes on every call by reading the current value of each source signal. This keeps it simple and always correct, at the cost of not being optimized for extremely hot loops.
+
+---
+
+## 🗑️ Scoped / temporary storage with `destroy()`
+
+Some data only makes sense while the user is on a specific page or component — search filters, a form draft, table selection state. `destroy()` completely removes those keys from storage, unlike `reset()` (which keeps the key but resets its value) or `clear()` (which resets all keys but keeps them present).
+
+```typescript
+const searchFilters = createStorage({
+    category: '',
+    priceRange: [0, 100]
+}, { prefix: 'products-page' });
+
+// User filters, searches, browses...
+searchFilters.category.set('electronics');
+
+// User leaves the "Products" page
+searchFilters.destroy();
+// → localStorage['products-page:category'] no longer exists at all
+// → coming back later starts clean
+```
+
+### `destroy()` vs `reset()` vs `clear()`
+
+```typescript
+// reset(key) — goes back to initialValue, key still exists in storage
+storage.theme.reset();
+// localStorage['app:theme'] = '"dark"' — still there
+// storage.theme() → 'dark' (initialValue)
+
+// destroy() (on the whole StorageResult) — removes every key completely
+storage.destroy();
+// localStorage['app:theme'] — no longer exists
+// storage.theme() → 'dark' (initialValue, in memory only)
+
+// clear() — calls reset() on every key in the schema
+storage.clear();
+// same as reset(), but for every key at once — keys still exist
+```
+
+### When to use `destroy()`
+
+```
+✅ Good for:
+   - Search filters, form drafts, temporary UI state
+   - Data that should always start "clean" on a fresh visit
+
+❌ Not for:
+   - Data you want to reuse between visits (use `ttl` for that instead —
+     a short-lived cache that still survives navigation)
+   - User preferences (theme, language) — those should persist indefinitely
+```
+
+If you want data to survive between visits but expire after a while (e.g. a product list cache), use `ttl` instead of `destroy()` — that's a "stale-while-revalidate" pattern: show the cached value immediately, then refresh it in the background.
+
+> Automatic integration with Angular's `ngOnDestroy` / React's `useEffect` cleanup (so you don't have to call `destroy()` manually) is planned for the framework wrappers.
+
+---
+
+## ✅ Options validation
+
+`createStorage()` validates option combinations upfront and throws a clear error instead of failing silently or behaving unexpectedly:
+
+```typescript
+createStorage({ token: '' }, { encrypt: true });
+// ❌ Throws: typed-storage: opciones inválidas:
+//    - encrypt está activado pero falta "secret"
+
+createStorage({ theme: 'dark' }, { version: 2 });
+// ❌ Throws: typed-storage: opciones inválidas:
+//    - version está definida pero falta "migrations"
+
+createStorage({ token: '' }, { ttl: -100 });
+// ❌ Throws: typed-storage: opciones inválidas:
+//    - ttl no puede ser negativo
+```
+
+This catches common misconfigurations at the moment `createStorage()` is called, rather than leaving you to debug why encryption or migrations "aren't working" later.
 
 ---
 
@@ -230,7 +396,7 @@ If you only need small values (theme, language, settings), stick with `createSto
 
 ---
 
-
+## ⚙️ Options
 
 ```typescript
 const appStorage = createStorage(schema, options);
@@ -240,13 +406,15 @@ const appStorage = createStorage(schema, options);
 |--------|------|---------|-------------|
 | `prefix` | `string` | — | Prepends `prefix:` to every key in localStorage |
 | `storage` | `'local' \| 'session'` | `'local'` | Use `sessionStorage` instead of `localStorage` |
-| `ttl` | `number` | — | Time to live in milliseconds — key expires after this time |
+| `ttl` | `number` | — | Time to live in milliseconds — key expires after this time. Must be >= 0 |
 | `sync` | `boolean` | `false` | Sync values across browser tabs via `StorageEvent` |
-| `version` | `number` | — | Current schema version — required for migrations |
-| `migrations` | `Record<number, (data) => data>` | — | Migration functions per version |
+| `version` | `number` | — | Current schema version — requires `migrations` if set |
+| `migrations` | `Record<number, (data) => data>` | — | Migration functions per version — required if `version` is set |
 | `compress` | `boolean` | `false` | Compresses data with LZ-string before storing |
-| `encrypt` | `boolean` | `false` | Obfuscates data with XOR + Base64 — see security note below |
+| `encrypt` | `boolean` | `false` | Obfuscates data with XOR + Base64 — requires `secret`, see security note below |
 | `secret` | `string` | — | Required when `encrypt: true` — the obfuscation key |
+
+Invalid combinations (`encrypt` without `secret`, `version` without `migrations`, negative `ttl`) throw a descriptive error immediately when `createStorage()` is called.
 
 ---
 
@@ -427,7 +595,11 @@ function App() {
 
 ### `createStorage(schema, options?)`
 
-Creates a storage object from a schema. Returns a `StorageResult<T>` with one `StorageSignal` per key, plus a `clear()` method.
+Creates a storage object from a schema. Returns a `StorageResult<T>` with one `StorageSignal` per key, plus `clear()`, `destroy()`, and `batch()`.
+
+### `computed(signals, compute)`
+
+Combines one or more `StorageSignal`s into a derived reactive value. Returns a function that recomputes on every call.
 
 ### `StorageSignal<T>`
 
@@ -435,7 +607,7 @@ Creates a storage object from a schema. Returns a `StorageResult<T>` with one `S
 |--------|-------------|
 | `signal()` | Returns the current value |
 | `signal.set(value)` | Updates the value and persists to storage |
-| `signal.reset()` | Resets to `initialValue` and persists |
+| `signal.reset()` | Resets to `initialValue` and persists (key still exists) |
 | `signal.remove()` | Removes the key from storage and resets in memory |
 | `signal.has()` | Returns `true` if the key exists in storage |
 | `signal.onChange(cb)` | Subscribes to value changes |
@@ -445,7 +617,9 @@ Creates a storage object from a schema. Returns a `StorageResult<T>` with one `S
 | Member | Description |
 |--------|-------------|
 | `[key]` | One `StorageSignal` per schema key |
-| `clear()` | Calls `reset()` on all keys in the schema |
+| `clear()` | Calls `reset()` on all keys in the schema (keys still exist) |
+| `destroy()` | Calls `remove()` on all keys — completely removes them from storage |
+| `batch(values)` | Updates multiple keys in a single call |
 
 ---
 
