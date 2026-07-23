@@ -30,6 +30,7 @@ console.log(appStorage.theme()); // 'light' — persisted across reloads
 - **`batch()`** — update multiple keys in a single call
 - **`computed()`** — derive reactive values from one or more signals
 - **`destroy()`** — completely remove scoped/temporary data
+- **`routeOverrides`** — different values per route/page, with automatic sync via `setRoute()`
 - **Options validation** — clear errors for invalid configuration, thrown early
 - **Zero dependencies** — pure TypeScript, no external packages
 
@@ -226,6 +227,77 @@ If you want data to survive between visits but expire after a while (e.g. a prod
 
 ---
 
+## 🧭 Different values per route with `routeOverrides`
+
+Some values should differ depending on which page the user is on — for example, a different theme on the landing page than in the dashboard. `routeOverrides` maps routes to specific key values, applied through `setRoute()`.
+
+```typescript
+const appStorage = createStorage({
+    theme: 'dark' as 'dark' | 'light',
+}, {
+    prefix: 'app',
+    routeOverrides: {
+        '/': { theme: 'dark' },
+        '/about': { theme: 'light' }
+    }
+});
+
+appStorage.setRoute('/about');
+appStorage.theme(); // → 'light'
+
+appStorage.setRoute('/');
+appStorage.theme(); // → 'dark'
+```
+
+If the current route has no entry in `routeOverrides`, `setRoute()` does nothing — the "normal" value (whatever is currently stored) is used as-is.
+
+### Removing a key for a specific route with `null`
+
+Use `null` as the override value to make a key disappear from storage entirely while on that route:
+
+```typescript
+const appStorage = createStorage({
+    currency: 'USD',
+}, {
+    prefix: 'shop',
+    routeOverrides: {
+        '/checkout': { currency: null } // force re-selection at checkout, for safety
+    }
+});
+
+appStorage.currency.set('EUR');
+appStorage.setRoute('/checkout');
+// → localStorage['shop:currency'] is removed
+// → appStorage.currency() returns 'USD' (the initialValue) while on this route
+```
+
+This is useful when a value should never be silently "remembered" on a specific page, even if it persists everywhere else.
+
+### Connecting `setRoute()` to your router
+
+`typed-storage` doesn't know what a "route" is — you tell it, by calling `setRoute()` whenever navigation happens. This is a couple of lines of glue code specific to whichever router you use:
+
+```typescript
+// Vue Router
+router.afterEach((to) => appStorage.setRoute(to.path));
+
+// SvelteKit
+import { page } from '$app/stores';
+page.subscribe((p) => appStorage.setRoute(p.route.id ?? ''));
+
+// Astro (mostly server-rendered, no SPA navigation to track)
+appStorage.setRoute(Astro.url.pathname);
+
+// Vanilla JS / no framework
+window.addEventListener('popstate', () => {
+    appStorage.setRoute(window.location.pathname);
+});
+```
+
+For Angular and React, [@jeanharo98/typed-storage-angular](https://github.com/JeanHaro/typed-storage-angular) and [@jeanharo98/typed-storage-react](https://github.com/JeanHaro/typed-storage-react) wire this up for you automatically — see their documentation for details.
+
+---
+
 ## ✅ Options validation
 
 `createStorage()` validates option combinations upfront and throws a clear error instead of failing silently or behaving unexpectedly:
@@ -413,6 +485,7 @@ const appStorage = createStorage(schema, options);
 | `compress` | `boolean` | `false` | Compresses data with LZ-string before storing |
 | `encrypt` | `boolean` | `false` | Obfuscates data with XOR + Base64 — requires `secret`, see security note below |
 | `secret` | `string` | — | Required when `encrypt: true` — the obfuscation key |
+| `routeOverrides` | `Record<string, Record<string, any>>` | — | Maps routes to key values, applied via `setRoute()`. Use `null` to remove a key for a route |
 
 Invalid combinations (`encrypt` without `secret`, `version` without `migrations`, negative `ttl`) throw a descriptive error immediately when `createStorage()` is called.
 
@@ -595,7 +668,7 @@ function App() {
 
 ### `createStorage(schema, options?)`
 
-Creates a storage object from a schema. Returns a `StorageResult<T>` with one `StorageSignal` per key, plus `clear()`, `destroy()`, and `batch()`.
+Creates a storage object from a schema. Returns a `StorageResult<T>` with one `StorageSignal` per key, plus `clear()`, `destroy()`, `batch()`, and `setRoute()`.
 
 ### `computed(signals, compute)`
 
@@ -620,6 +693,7 @@ Combines one or more `StorageSignal`s into a derived reactive value. Returns a f
 | `clear()` | Calls `reset()` on all keys in the schema (keys still exist) |
 | `destroy()` | Calls `remove()` on all keys — completely removes them from storage |
 | `batch(values)` | Updates multiple keys in a single call |
+| `setRoute(route)` | Applies the `routeOverrides` entry matching `route`, if any |
 
 ---
 
