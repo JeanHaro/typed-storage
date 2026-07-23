@@ -1,6 +1,6 @@
 {
   "name": "@jeanharo98/typed-storage",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Type-safe localStorage with reactive signals",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,6 +13,11 @@
   },
   "keywords": [],
   "author": "",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "license": "MIT",
   "devEngines": {
     "packageManager": {
