@@ -493,6 +493,45 @@ createStorage({
 
 ---
 
+## 🔁 Automatic fallback to IndexedDB on quota exceeded
+
+If `localStorage.setItem()` fails specifically because the browser's storage quota was exceeded (`QuotaExceededError`), `typed-storage` automatically backs up that value to IndexedDB instead of losing it or throwing an uncaught error:
+
+```typescript
+const appStorage = createStorage({
+    cart: []
+});
+
+appStorage.cart.set([...hugeArrayOfProducts]);
+// If localStorage is full:
+// → a warning is logged
+// → the value is saved to IndexedDB in the background (fire-and-forget)
+// → your app doesn't crash
+
+// On a later page load, if localStorage still has nothing for that key,
+// typed-storage automatically checks IndexedDB and restores the value:
+const cart = appStorage.cart(); // starts as initialValue, then updates
+                                  // moments later once IndexedDB responds
+```
+
+### Why this doesn't break the synchronous API
+
+`createStorage()` is synchronous by design — `.set()` and reading a signal never return Promises. IndexedDB is asynchronous by nature, so this fallback is implemented as "fire-and-forget in the background":
+
+```
+1. .set() always returns immediately, synchronously, as always
+2. If localStorage.setItem() throws QuotaExceededError specifically:
+   → a background async call saves the value to IndexedDB
+   → your code doesn't wait for it, doesn't need to await anything
+3. On the next createStorage() call for that key (e.g. after a page reload):
+   → if localStorage has nothing, an async check against IndexedDB runs
+   → if something is found, the signal updates via onChange a moment later
+```
+
+This means the restored value can appear a few milliseconds after the page loads, rather than being available instantly — a reasonable trade-off for not losing the data at all when localStorage is full. Only `QuotaExceededError` triggers this fallback; other errors from `setItem()` are re-thrown normally, since they usually indicate a real bug rather than a storage limit.
+
+---
+
 ## 📊 Quota monitoring
 
 `localStorage` has a limit of roughly 5-10MB per domain (it varies by browser). If you exceed it, `setItem()` throws a `QuotaExceededError` — and if unhandled, your app can silently break. `onQuotaWarning` lets you get notified **before** that happens, so you can act (clean up old data, move things to `createHeavyStorage`, warn the user, etc.):

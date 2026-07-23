@@ -263,3 +263,47 @@ describe('onQuotaWarning', () => {
         expect(onQuotaWarning).toHaveBeenCalledWith(expect.any(Number));
     });
 });
+
+// IndexedDB como fallback al exceder el quota del localstorage
+describe('IndexedDB fallback on quota exceeded', () => {
+    beforeEach(() => localStorage.clear());
+
+    it('debe usar backupToIndexedDB cuando setItem lanza QuotaExceededError', () => {
+        const signal = createStorageSignal('bigData', '');
+
+        // Simula que localStorage.setItem lanza QuotaExceededError
+        const originalSetItem = Storage.prototype.setItem;
+        const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(() => {
+                throw new DOMException('Quota exceeded', 'QuotaExceededError');
+            });
+
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        expect(() => {
+            signal.set('valor grande');
+        }).not.toThrow(); // no debe romper la app, debe manejarse internamente
+
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('cuota excedida')
+        );
+
+        setItemSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+    });
+
+    it('otros errores de setItem SÍ deben propagarse (no son de cuota)', () => {
+        const signal = createStorageSignal('data', '');
+
+        const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(() => {
+                throw new Error('Un error random, no relacionado a cuota');
+            });
+
+        expect(() => {
+            signal.set('valor');
+        }).toThrow('Un error random, no relacionado a cuota');
+
+        setItemSpy.mockRestore();
+    });
+});

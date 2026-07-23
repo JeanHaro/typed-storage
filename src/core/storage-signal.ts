@@ -21,10 +21,23 @@ import { validateValue } from '../features/validate-schema.js';
 // Quota
 import { getUsagePercent } from '../features/quota-monitor.js';
 
+// Quota - Fallback
+import { 
+    backupToIndexedDB, 
+    restoreFromIndexedDB 
+} from '../features/quota-fallback.js';
+
 // Interface
 interface StoredValue<T> {
     value: T;
     expiresAt?: number; // undefined = sin expiración
+}
+
+function isQuotaExceededError ( err: unknown ): boolean {
+    return (
+        err instanceof DOMException && 
+        ( err.name === 'QuotaExceededError' || err.code === 22 )
+    )
 }
 
 // Asegurar el parseo del JSON, verificamos si el valor que se obtiene es del tipo T
@@ -119,6 +132,17 @@ export function createStorageSignal<T>(
         }
     }
 
+    // Intenta recuperar de IndexedDB si no había nada en localStorage
+    if ( !savedData ) {
+        restoreFromIndexedDB(key).then( (backupData) => {
+            if ( backupData ) {
+                const restoredItem = safeParseJSON(backupData, initialValue);
+                currentValue = restoredItem.value;
+                notify(currentValue);
+            }
+        });
+    }
+
     const signalBase = function(): T {
         return currentValue;
     }
@@ -177,7 +201,16 @@ export function createStorageSignal<T>(
             finalData = xorEncrypt(finalData, options.secret);
         }
 
-        sto.setItem( key, finalData );
+        try {
+            sto.setItem(key, finalData);
+        } catch ( error ) {
+            if ( isQuotaExceededError(error) ) {
+                console.warn(`typed-storage: cuota excedida al guardar "${key}", respaldando en IndexedDB`);
+                backupToIndexedDB(key, finalData);
+            } else {
+                throw error;
+            }
+        }
 
         // Verificamos el quota despues de guardar
         if ( options?.onQuotaWarning && sto instanceof Storage ) {
