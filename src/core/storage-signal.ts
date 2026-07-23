@@ -15,6 +15,9 @@ import {
     xorDecrypt 
 } from '../features/xor.js';
 
+// Validation
+import { validateValue } from '../features/validate-schema.js';
+
 // Interface
 interface StoredValue<T> {
     value: T;
@@ -66,6 +69,11 @@ export function createStorageSignal<T>(
     initialValue: T,
     options?: StorageSignalOptions
 ): StorageSignal<T> {
+    // Guardamos antes de prefijar
+    const originalKey = key;
+    // Buscamos su validador
+    const validator = options?.validate?.[originalKey];
+
     // Obtenemos que tipo de storage será
     let sto = getStorage(options?.storage ?? 'local');
 
@@ -144,6 +152,12 @@ export function createStorageSignal<T>(
     }
 
     signalBase.set = function ( newValue: T ): void {
+        const validation = validateValue(newValue, validator);
+
+        if ( !validation.valid ) {
+            throw new Error(`typed-storage: valor inválido para "${originalKey}": ${validation.error}`)
+        }
+
         currentValue = newValue;
         notify(currentValue);
         

@@ -1,3 +1,8 @@
+// Aceptamos cualquier "validator"
+export interface Validator {
+    safeParse(value: any): { success: boolean, error?: any }
+}
+
 // Opciones de Storage
 export interface StorageSignalOptions {
     prefix?: string;
@@ -10,6 +15,7 @@ export interface StorageSignalOptions {
     migrations?: Record<number, ( data: any ) => any>;
     compress?: boolean;
     routeOverrides?: Record<string, Record<string, any> & { __once?: boolean }>;
+    validate?: Record<string, Validator>;
 }
 
 // Objeto reactivo con getter, setter y reset

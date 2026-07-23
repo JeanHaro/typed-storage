@@ -440,6 +440,59 @@ This catches common misconfigurations at the moment `createStorage()` is called,
 
 ---
 
+## ✅ Runtime validation with Zod (optional)
+
+`createStorage()`'s schema-type registry (documented above) only checks the primitive JavaScript type — `string`, `number`, `boolean`, `object`. It doesn't enforce actual business rules like "this must be a valid email" or "this number must be between 0 and 120". For that, `typed-storage` supports optional runtime validation using [Zod](https://zod.dev) (or any validator with a compatible `safeParse` method — Zod isn't a hard dependency).
+
+```typescript
+import { createStorage } from 'typed-storage';
+import { z } from 'zod';
+
+const appStorage = createStorage({
+    email: '',
+    age: 0
+}, {
+    validate: {
+        email: z.string().email(),
+        age: z.number().min(0).max(120)
+    }
+});
+
+appStorage.email.set('jean@gmail.com'); // ✅ valid, saved normally
+appStorage.email.set('not-an-email');
+// ❌ Throws: typed-storage: valor inválido para "email": Invalid email
+
+appStorage.age.set(-5);
+// ❌ Throws: typed-storage: valor inválido para "age": ...
+```
+
+### Zod is optional, not a hard dependency
+
+`typed-storage` doesn't import Zod internally — it only expects the object passed to `validate[key]` to have a `safeParse(value)` method that returns `{ success: boolean, error?: any }`, which is exactly Zod's schema interface. This means:
+
+```bash
+# Install Zod yourself, only if you want to use validate
+pnpm add zod
+```
+
+If you never use `validate`, `typed-storage` has zero extra bundle weight from this feature — nothing is imported unless you provide validators.
+
+### Only keys with a `validate` entry are checked
+
+```typescript
+createStorage({
+    email: '',
+    theme: 'dark' as 'dark' | 'light'  // no validator provided for this key
+}, {
+    validate: {
+        email: z.string().email()
+        // theme is not listed — no validation runs for it, .set() always succeeds
+    }
+});
+```
+
+---
+
 ## 🔄 Schema Migrations
 
 When your schema changes between versions, migrations ensure users don't lose their data.
@@ -606,6 +659,7 @@ const appStorage = createStorage(schema, options);
 | `encrypt` | `boolean` | `false` | Obfuscates data with XOR + Base64 — requires `secret`, see security note below |
 | `secret` | `string` | — | Required when `encrypt: true` — the obfuscation key |
 | `routeOverrides` | `Record<string, Record<string, any> & { __once?: boolean }>` | — | Maps routes to key values, applied via `setRoute()`. Use `null` to remove a key for a route, `__once: true` to apply an override only on the first visit |
+| `validate` | `Record<string, { safeParse(value): { success, error? } }>` | — | Optional runtime validation per key, compatible with Zod schemas |
 
 Invalid combinations (`encrypt` without `secret`, `version` without `migrations`, negative `ttl`) throw a descriptive error immediately when `createStorage()` is called.
 

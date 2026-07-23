@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createStorageSignal } from './storage-signal.js';
+import { z } from 'zod';
 
 describe('createStorageSignal', () => {
      // Limpia localStorage antes de cada test
@@ -157,5 +158,56 @@ describe('encrypt option', () => {
 
         signal.set('mi-token');
         expect(signal()).toBe('mi-token');
+    });
+});
+
+// Validations
+describe('validate option', () => {
+    beforeEach(() => localStorage.clear());
+
+    it('debe lanzar error si el valor no pasa la validación de Zod', () => {
+        const emailSignal = createStorageSignal('email', '', {
+            validate: {
+                email: z.string().email()
+            }
+        });
+
+        expect(() => {
+            emailSignal.set('esto-no-es-un-email');
+        }).toThrow(/valor inválido/);
+    });
+
+    it('debe permitir el set si el valor SÍ pasa la validación', () => {
+        const emailSignal = createStorageSignal('email', '', {
+            validate: {
+                email: z.string().email()
+            }
+        });
+
+        expect(() => {
+            emailSignal.set('jean@gmail.com');
+        }).not.toThrow();
+
+        expect(emailSignal()).toBe('jean@gmail.com');
+    });
+
+    it('sin validate, cualquier valor pasa sin restricción', () => {
+        const signal = createStorageSignal('theme', 'dark');
+
+        expect(() => {
+            signal.set('cualquier-cosa');
+        }).not.toThrow();
+    });
+
+    it('debe validar con reglas numéricas (min/max)', () => {
+        const ageSignal = createStorageSignal('age', 0, {
+            validate: {
+                age: z.number().min(0).max(120)
+            }
+        });
+
+        expect(() => ageSignal.set(-5)).toThrow(/valor inválido/);
+        expect(() => ageSignal.set(200)).toThrow(/valor inválido/);
+        expect(() => ageSignal.set(30)).not.toThrow();
     });
 });
