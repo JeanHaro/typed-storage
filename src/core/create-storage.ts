@@ -100,5 +100,23 @@ export function createStorage<T extends StorageSchema>(
         }
     }
 
+    result.setRoute = ( route: string ) => {
+        const overrides = options?.routeOverrides?.[route];
+
+        if ( !overrides ) return; // esta ruta no tiene overrides, no hace nada
+
+        for ( const key of Object.keys(overrides) ) {
+            if ( result[key] ) {
+                const value = overrides[key];
+
+                if ( value === null ) {
+                    result[key].remove(); // borra la key en esta ruta
+                } else {
+                    result[key].set(value); // aplica el valor de esta ruta
+                }
+            }
+        }
+    }
+
     return result as StorageResult<T>;
 }

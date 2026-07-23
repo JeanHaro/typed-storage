@@ -9,6 +9,7 @@ export interface StorageSignalOptions {
     version?: number;
     migrations?: Record<number, ( data: any ) => any>;
     compress?: boolean;
+    routeOverrides?: Record<string, Record<string, any>>;
 }
 
 // Objeto reactivo con getter, setter y reset
@@ -31,4 +32,5 @@ export type StorageResult<T extends StorageSchema> = {
     clear(): void;
     destroy(): void;
     batch(values: Partial<T>): void;
+    setRoute(route: string): void;
 }

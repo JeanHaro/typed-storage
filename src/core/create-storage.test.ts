@@ -119,3 +119,78 @@ it('debe crear el storage normalmente si las opciones son válidas', () => {
         createStorage({ theme: 'dark' }, { prefix: 'validate-4', ttl: 1000 });
     }).not.toThrow();
 });
+
+// Test de setRoute
+it('setRoute() debe aplicar el valor override de la ruta actual', () => {
+    const storage = createStorage({
+        theme: 'dark' as 'dark' | 'light'
+    }, {
+        prefix: 'route-1',
+        routeOverrides: {
+            '/': { theme: 'dark' },
+            '/about': { theme: 'light' }
+        }
+    });
+
+    storage.setRoute('/about');
+    expect(storage.theme()).toBe('light');
+
+    storage.setRoute('/');
+    expect(storage.theme()).toBe('dark');
+});
+
+// Test de setRoute
+it('setRoute() no debe hacer nada si la ruta no tiene overrides', () => {
+    const storage = createStorage({
+        theme: 'dark' as 'dark' | 'light'
+    }, {
+        prefix: 'route-2',
+        routeOverrides: {
+            '/about': { theme: 'light' }
+        }
+    });
+
+    storage.theme.set('light'); // valor "normal", sin override
+
+    storage.setRoute('/dashboard'); // ruta no mencionada en routeOverrides
+
+    expect(storage.theme()).toBe('light'); // no cambió
+});
+
+// Test de setRoute
+it('setRoute() con valor null debe eliminar la key de esa ruta', () => {
+    const storage = createStorage({
+        theme: 'dark' as 'dark' | 'light'
+    }, {
+        prefix: 'route-3',
+        routeOverrides: {
+            '/contact': { theme: null }
+        }
+    });
+
+    storage.theme.set('light');
+    expect(localStorage.getItem('route-3:theme')).not.toBeNull();
+
+    storage.setRoute('/contact');
+
+    expect(localStorage.getItem('route-3:theme')).toBeNull();
+    expect(storage.theme()).toBe('dark'); // vuelve al initialValue
+});
+
+// Test de setRoute
+it('setRoute() debe manejar múltiples keys en el mismo override', () => {
+    const storage = createStorage({
+        theme: 'dark' as 'dark' | 'light',
+        fontSize: 16
+    }, {
+        prefix: 'route-4',
+        routeOverrides: {
+            '/settings': { theme: 'light', fontSize: 20 }
+        }
+    });
+
+    storage.setRoute('/settings');
+
+    expect(storage.theme()).toBe('light');
+    expect(storage.fontSize()).toBe(20);
+});
