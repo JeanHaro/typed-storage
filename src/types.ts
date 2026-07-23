@@ -16,6 +16,8 @@ export interface StorageSignalOptions {
     compress?: boolean;
     routeOverrides?: Record<string, Record<string, any> & { __once?: boolean }>;
     validate?: Record<string, Validator>;
+    onQuotaWarning?: ( percentUsed: number ) => void;
+    quotaThreshold?: number; // default 80
 }
 
 // Objeto reactivo con getter, setter y reset

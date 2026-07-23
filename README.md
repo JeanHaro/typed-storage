@@ -493,6 +493,33 @@ createStorage({
 
 ---
 
+## 📊 Quota monitoring
+
+`localStorage` has a limit of roughly 5-10MB per domain (it varies by browser). If you exceed it, `setItem()` throws a `QuotaExceededError` — and if unhandled, your app can silently break. `onQuotaWarning` lets you get notified **before** that happens, so you can act (clean up old data, move things to `createHeavyStorage`, warn the user, etc.):
+
+```typescript
+const appStorage = createStorage({
+    cart: []
+}, {
+    prefix: 'shop',
+    onQuotaWarning: (percentUsed) => {
+        console.warn(`⚠️ localStorage is at ${percentUsed}% of its estimated capacity`);
+    },
+    quotaThreshold: 80 // optional, defaults to 80 (%)
+});
+```
+
+`onQuotaWarning` is checked after every `.set()` call. The percentage is an **estimate** — there's no native browser API to query exact remaining quota, so `typed-storage` sums the character length of every key and value currently in that storage (`local` or `session`) and compares it against a conservative assumed limit of 5MB.
+
+```
+Without onQuotaWarning → no overhead, nothing is calculated
+With onQuotaWarning     → recalculates total usage on every .set() call
+                          (negligible cost for typical apps with a
+                          reasonable number of keys)
+```
+
+---
+
 ## 🔄 Schema Migrations
 
 When your schema changes between versions, migrations ensure users don't lose their data.
@@ -660,6 +687,8 @@ const appStorage = createStorage(schema, options);
 | `secret` | `string` | — | Required when `encrypt: true` — the obfuscation key |
 | `routeOverrides` | `Record<string, Record<string, any> & { __once?: boolean }>` | — | Maps routes to key values, applied via `setRoute()`. Use `null` to remove a key for a route, `__once: true` to apply an override only on the first visit |
 | `validate` | `Record<string, { safeParse(value): { success, error? } }>` | — | Optional runtime validation per key, compatible with Zod schemas |
+| `onQuotaWarning` | `(percentUsed: number) => void` | — | Called after `.set()` if estimated storage usage exceeds `quotaThreshold` |
+| `quotaThreshold` | `number` | `80` | Percentage (0-100) at which `onQuotaWarning` fires |
 
 Invalid combinations (`encrypt` without `secret`, `version` without `migrations`, negative `ttl`) throw a descriptive error immediately when `createStorage()` is called.
 

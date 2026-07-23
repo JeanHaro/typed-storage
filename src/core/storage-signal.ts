@@ -18,6 +18,9 @@ import {
 // Validation
 import { validateValue } from '../features/validate-schema.js';
 
+// Quota
+import { getUsagePercent } from '../features/quota-monitor.js';
+
 // Interface
 interface StoredValue<T> {
     value: T;
@@ -175,6 +178,16 @@ export function createStorageSignal<T>(
         }
 
         sto.setItem( key, finalData );
+
+        // Verificamos el quota despues de guardar
+        if ( options?.onQuotaWarning && sto instanceof Storage ) {
+            const percent = getUsagePercent(sto);
+            const threshold = options.quotaThreshold ?? 80;
+
+            if ( percent >= threshold ) {
+                options.onQuotaWarning(percent);
+            }
+        }
     }
 
     signalBase.reset = function(): void {

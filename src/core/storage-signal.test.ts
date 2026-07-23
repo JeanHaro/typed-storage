@@ -211,3 +211,55 @@ describe('validate option', () => {
         expect(() => ageSignal.set(30)).not.toThrow();
     });
 });
+
+// Quota
+describe('onQuotaWarning', () => {
+    beforeEach(() => localStorage.clear());
+
+    it('debe llamar onQuotaWarning cuando se supera el threshold', () => {
+        const onQuotaWarning = vi.fn();
+
+        const signal = createStorageSignal('bigData', '', {
+            onQuotaWarning,
+            quotaThreshold: 0 // umbral en 0% para forzar que dispare siempre
+        });
+
+        signal.set('cualquier valor');
+
+        expect(onQuotaWarning).toHaveBeenCalled();
+    });
+
+    it('no debe llamar onQuotaWarning si no se supera el threshold', () => {
+        const onQuotaWarning = vi.fn();
+
+        const signal = createStorageSignal('smallData', '', {
+            onQuotaWarning,
+            quotaThreshold: 100 // umbral altísimo, casi imposible de alcanzar
+        });
+
+        signal.set('valor pequeño');
+
+        expect(onQuotaWarning).not.toHaveBeenCalled();
+    });
+
+    it('sin onQuotaWarning, no debe fallar ni hacer nada especial', () => {
+        const signal = createStorageSignal('data', '');
+
+        expect(() => {
+            signal.set('valor normal');
+        }).not.toThrow();
+    });
+
+    it('debe recibir el porcentaje calculado como argumento', () => {
+        const onQuotaWarning = vi.fn();
+
+        const signal = createStorageSignal('data', '', {
+            onQuotaWarning,
+            quotaThreshold: 0
+        });
+
+        signal.set('valor');
+
+        expect(onQuotaWarning).toHaveBeenCalledWith(expect.any(Number));
+    });
+});
