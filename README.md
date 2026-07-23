@@ -273,6 +273,42 @@ appStorage.setRoute('/checkout');
 
 This is useful when a value should never be silently "remembered" on a specific page, even if it persists everywhere else.
 
+### ⚠️ `null` is destructive — it's not reversible
+
+Once `setRoute()` removes a key because of a `null` override, the previous value is gone completely — it's not "remembered" for later. Navigating to a route with no entry in `routeOverrides` does **not** restore what was there before; it simply leaves the key as whatever it currently is (removed, in this case), falling back to `initialValue`.
+
+```typescript
+routeOverrides: {
+    '/contact': { theme: null }
+    // '/dashboard' has no entry — no override at all
+}
+
+storage.theme.set('light');      // user picks 'light'
+storage.setRoute('/contact');    // → key removed, theme() = 'dark' (initialValue)
+storage.setRoute('/dashboard');  // → no override, does nothing
+                                  // → but the key is STILL removed from the previous step
+                                  // → theme() stays 'dark', the user's 'light' choice is lost
+```
+
+**If you use `null` for a value like `theme` that the user expects to persist across the whole app, you must set an explicit override (or none with `null`) for *every* route** — don't leave routes out, or users will silently lose their preference the moment they visit an unlisted route after visiting a `null` one.
+
+```typescript
+// ❌ Risky — only some routes have overrides, "gaps" can lose data unexpectedly
+routeOverrides: {
+    '/contact': { theme: null }
+}
+
+// ✅ Safe — every route is explicit, no route falls through unexpectedly
+routeOverrides: {
+    '/': { theme: 'dark' },
+    '/about': { theme: 'dark' },
+    '/contact': { theme: null },
+    '/dashboard': { theme: 'dark' }
+}
+```
+
+`null` is best reserved for values that are genuinely meant to be page-scoped and disposable (e.g. re-confirming currency at checkout) — not for app-wide preferences like `theme` or `language` that users expect to survive navigation everywhere.
+
 ### Connecting `setRoute()` to your router
 
 `typed-storage` doesn't know what a "route" is — you tell it, by calling `setRoute()` whenever navigation happens. This is a couple of lines of glue code specific to whichever router you use:
