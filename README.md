@@ -347,6 +347,52 @@ With __once     → the override only wins the first time ever;
 
 Use `__once` when you want a route to have a sensible *starting* value the first time a user lands there, but want to fully respect whatever they choose afterward — for example, defaulting `/dashboard` to `'light'` on first visit, without overriding a returning user's later choice of `'dark'` or any other value.
 
+### ⚠️ Important — `routeOverrides` (with or without `__once`) is always ONE shared value, never per-route isolation
+
+This is the single most common point of confusion, so it deserves its own callout: **`routeOverrides` always operates on the *same* key** (e.g. `app:theme`), regardless of which route you're on. Whether or not you use `__once`, there is still only **one** `theme` value shared across your entire app — `routeOverrides` only controls *when that one shared value gets overwritten automatically*, never whether different routes get their own independent copies.
+
+If what you actually want is for `/home` and `/about` to each keep their **own, fully independent** value — where changing one never affects the other, no matter what — `routeOverrides` is the wrong tool entirely, even with `__once`. Use a separate `prefix` per page instead:
+
+```typescript
+// Home page — its own isolated storage
+const homeStorage = createStorage({ theme: 'dark' as 'dark' | 'light' }, { prefix: 'home' });
+
+// About page — a completely separate isolated storage
+const aboutStorage = createStorage({ theme: 'light' as 'dark' | 'light' }, { prefix: 'about' });
+
+// Changing homeStorage.theme never affects aboutStorage.theme, and vice versa —
+// they are two entirely different localStorage keys ('home:theme' and 'about:theme')
+```
+
+### Choosing the right pattern
+
+| You want... | Use |
+|---|---|
+| Each page to have its own value, totally independent, forever | Separate `prefix` per page |
+| One shared app-wide value that gets **reset** to a specific value every time a route is visited | `routeOverrides` **without** `__once` |
+| One shared app-wide value with a sensible *starting suggestion* per route, but the user's later choice (from any route) is respected everywhere afterward | `routeOverrides` **with** `__once: true` |
+| A value to disappear entirely while on a specific route (e.g. force re-confirmation) | `routeOverrides` with `null` for that route (see the destructive-`null` warning above) |
+
+```
+prefix per page:
+  home:theme = 'dark'    ← completely separate key
+  about:theme = 'light'  ← completely separate key
+  Changing one never touches the other. True isolation.
+
+routeOverrides without __once:
+  app:theme = ??? (one key, shared)
+  Every visit to '/' forces 'dark'. Every visit to '/about' forces 'light'.
+  Feels "independent" because it resets on every visit, but it's the
+  SAME key being overwritten each time — a manual change is lost
+  the moment you revisit an overridden route.
+
+routeOverrides with __once:
+  app:theme = ??? (one key, shared)
+  '/' suggests 'dark' the first time ever, '/about' suggests 'light'
+  the first time ever. After that, whatever the user sets — from
+  ANY route — persists everywhere, permanently.
+```
+
 ### Connecting `setRoute()` to your router
 
 `typed-storage` doesn't know what a "route" is — you tell it, by calling `setRoute()` whenever navigation happens. This is a couple of lines of glue code specific to whichever router you use:
