@@ -9,7 +9,7 @@ export interface StorageSignalOptions {
     version?: number;
     migrations?: Record<number, ( data: any ) => any>;
     compress?: boolean;
-    routeOverrides?: Record<string, Record<string, any>>;
+    routeOverrides?: Record<string, Record<string, any> & { __once?: boolean }>;
 }
 
 // Objeto reactivo con getter, setter y reset

@@ -100,19 +100,35 @@ export function createStorage<T extends StorageSchema>(
         }
     }
 
-    result.setRoute = ( route: string ) => {
+    result.setRoute = (route: string) => {
         const overrides = options?.routeOverrides?.[route];
 
-        if ( !overrides ) return; // esta ruta no tiene overrides, no hace nada
+        if (!overrides) return;
 
-        for ( const key of Object.keys(overrides) ) {
-            if ( result[key] ) {
+        const onceKey = `${options?.prefix ?? ''}__route-once__`;
+        const usedOnces: string[] = JSON.parse(sto.getItem(onceKey) ?? '[]');
+
+        for (const key of Object.keys(overrides)) {
+            if (key === '__once') continue; // es una bandera, no un dato real
+
+            if (result[key]) {
                 const value = overrides[key];
+                const isOnce = overrides.__once === true;
+                const onceId = `${route}:${key}`;
 
-                if ( value === null ) {
-                    result[key].remove(); // borra la key en esta ruta
+                if (isOnce && usedOnces.includes(onceId)) {
+                    continue; // ya se aplicó una vez, no reaplicar
+                }
+
+                if (value === null) {
+                    result[key].remove();
                 } else {
-                    result[key].set(value); // aplica el valor de esta ruta
+                    result[key].set(value);
+                }
+
+                if (isOnce) {
+                    usedOnces.push(onceId);
+                    sto.setItem(onceKey, JSON.stringify(usedOnces));
                 }
             }
         }

@@ -309,6 +309,44 @@ routeOverrides: {
 
 `null` is best reserved for values that are genuinely meant to be page-scoped and disposable (e.g. re-confirming currency at checkout) — not for app-wide preferences like `theme` or `language` that users expect to survive navigation everywhere.
 
+### Applying an override only once with `__once`
+
+By default, an override in `routeOverrides` is reapplied **every time** you navigate to that route — even if the user manually changed the value while they were there. Add `__once: true` to an override so it only applies the first time the user visits that route, and is never reimposed again afterward:
+
+```typescript
+const appStorage = createStorage({
+    theme: 'dark' as 'dark' | 'light',
+}, {
+    prefix: 'app',
+    routeOverrides: {
+        '/dashboard': { theme: 'light', __once: true }
+    }
+});
+
+// First visit — the override applies
+appStorage.setRoute('/dashboard');
+appStorage.theme(); // → 'light'
+
+// User changes it manually
+appStorage.theme.set('dark');
+
+// Leaves and comes back to /dashboard
+appStorage.setRoute('/dashboard');
+appStorage.theme(); // → 'dark' — NOT reset to 'light', the override already "used up" its one application
+```
+
+`__once` doesn't restrict the user from changing the value afterward — it only stops the *automatic override* from reimposing itself. The user (or your app) can keep calling `.set()` freely, forever, exactly like any other value.
+
+The "already applied" state is stored in `localStorage` (under a `prefix__route-once__` key), so it survives full page reloads — it's not just an in-memory flag that resets when the user refreshes the browser.
+
+```
+Without __once → the override always wins on every visit to that route
+With __once     → the override only wins the first time ever;
+                   after that, the value behaves like a normal signal
+```
+
+Use `__once` when you want a route to have a sensible *starting* value the first time a user lands there, but want to fully respect whatever they choose afterward — for example, defaulting `/dashboard` to `'light'` on first visit, without overriding a returning user's later choice of `'dark'` or any other value.
+
 ### Connecting `setRoute()` to your router
 
 `typed-storage` doesn't know what a "route" is — you tell it, by calling `setRoute()` whenever navigation happens. This is a couple of lines of glue code specific to whichever router you use:
@@ -521,7 +559,7 @@ const appStorage = createStorage(schema, options);
 | `compress` | `boolean` | `false` | Compresses data with LZ-string before storing |
 | `encrypt` | `boolean` | `false` | Obfuscates data with XOR + Base64 — requires `secret`, see security note below |
 | `secret` | `string` | — | Required when `encrypt: true` — the obfuscation key |
-| `routeOverrides` | `Record<string, Record<string, any>>` | — | Maps routes to key values, applied via `setRoute()`. Use `null` to remove a key for a route |
+| `routeOverrides` | `Record<string, Record<string, any> & { __once?: boolean }>` | — | Maps routes to key values, applied via `setRoute()`. Use `null` to remove a key for a route, `__once: true` to apply an override only on the first visit |
 
 Invalid combinations (`encrypt` without `secret`, `version` without `migrations`, negative `ttl`) throw a descriptive error immediately when `createStorage()` is called.
 

@@ -194,3 +194,75 @@ it('setRoute() debe manejar múltiples keys en el mismo override', () => {
     expect(storage.theme()).toBe('light');
     expect(storage.fontSize()).toBe(20);
 });
+
+// _once
+it('con __once: true, el override solo se aplica la primera vez', () => {
+    const storage = createStorage({
+        theme: 'dark' as 'dark' | 'light'
+    }, {
+        prefix: 'once-1',
+        routeOverrides: {
+            '/page2': { theme: 'light', __once: true }
+        }
+    });
+
+    // Primera visita — se aplica el override
+    storage.setRoute('/page2');
+    expect(storage.theme()).toBe('light');
+
+    // Usuario cambia manualmente
+    storage.theme.set('dark');
+
+    // Vuelve a la ruta — NO debe reaplicar el override
+    storage.setRoute('/page2');
+    expect(storage.theme()).toBe('dark'); // se mantiene, no vuelve a 'light'
+});
+
+// _once
+it('sin __once, el override se reaplica cada vez', () => {
+    const storage = createStorage({
+        theme: 'dark' as 'dark' | 'light'
+    }, {
+        prefix: 'once-2',
+        routeOverrides: {
+            '/page2': { theme: 'light' } // sin __once
+        }
+    });
+
+    storage.setRoute('/page2');
+    expect(storage.theme()).toBe('light');
+
+    storage.theme.set('dark');
+
+    // Vuelve a la ruta — SÍ debe reaplicar el override
+    storage.setRoute('/page2');
+    expect(storage.theme()).toBe('light'); // se reimpone
+});
+
+// _once
+it('con __once: true, el estado "usado" persiste en localStorage entre instancias', () => {
+    const storage1 = createStorage({
+        theme: 'dark' as 'dark' | 'light'
+    }, {
+        prefix: 'once-3',
+        routeOverrides: {
+            '/page2': { theme: 'light', __once: true }
+        }
+    });
+
+    storage1.setRoute('/page2');
+    storage1.theme.set('purple' as any);
+
+    // Simula "recargar la página" — nueva instancia con el mismo prefix
+    const storage2 = createStorage({
+        theme: 'dark' as 'dark' | 'light'
+    }, {
+        prefix: 'once-3',
+        routeOverrides: {
+            '/page2': { theme: 'light', __once: true }
+        }
+    });
+
+    storage2.setRoute('/page2');
+    expect(storage2.theme()).toBe('purple'); // NO se reaplica, sobrevivió el "reload"
+});
