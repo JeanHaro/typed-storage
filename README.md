@@ -434,6 +434,10 @@ createStorage({ theme: 'dark' }, { version: 2 });
 createStorage({ token: '' }, { ttl: -100 });
 // ❌ Throws: typed-storage: opciones inválidas:
 //    - ttl no puede ser negativo
+
+createStorage({ theme: 'dark' }, { quotaThreshold: 150 });
+// ❌ Throws: typed-storage: opciones inválidas:
+//    - quotaThreshold debe estar entre 0 y 100
 ```
 
 This catches common misconfigurations at the moment `createStorage()` is called, rather than leaving you to debug why encryption or migrations "aren't working" later.

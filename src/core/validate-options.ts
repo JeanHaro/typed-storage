@@ -15,5 +15,12 @@ export function validateOptions ( options?: StorageSignalOptions ): string[] {
         errors.push('ttl no puede ser negativo');
     }
 
+    if ( 
+        options?.quotaThreshold !== undefined && 
+        (options.quotaThreshold < 0 || options.quotaThreshold > 100) 
+    ) {
+        errors.push('quotaThreshold debe estar entre 0 y 100');
+    }
+
     return errors;
 }

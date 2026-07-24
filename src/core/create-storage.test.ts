@@ -170,6 +170,27 @@ it('debe crear el storage normalmente si las opciones son válidas', () => {
     }).not.toThrow();
 });
 
+// Test de la validación
+it('debe lanzar error si quotaThreshold es mayor a 100', () => {
+    expect(() => {
+        createStorage({ theme: 'dark' }, { prefix: 'validate-5', quotaThreshold: 150 });
+    }).toThrow('quotaThreshold debe estar entre 0 y 100');
+});
+
+// Test de la validación
+it('debe lanzar error si quotaThreshold es negativo', () => {
+    expect(() => {
+        createStorage({ theme: 'dark' }, { prefix: 'validate-6', quotaThreshold: -10 });
+    }).toThrow('quotaThreshold debe estar entre 0 y 100');
+});
+
+// Test de la validación
+it('debe aceptar quotaThreshold dentro del rango válido', () => {
+    expect(() => {
+        createStorage({ theme: 'dark' }, { prefix: 'validate-7', quotaThreshold: 50 });
+    }).not.toThrow();
+});
+
 // Test de setRoute
 it('setRoute() debe aplicar el valor override de la ruta actual', () => {
     const storage = createStorage({
