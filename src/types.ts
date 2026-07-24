@@ -41,4 +41,6 @@ export type StorageResult<T extends StorageSchema> = {
     destroy(): void;
     batch(values: Partial<T>): void;
     setRoute(route: string): void;
+    archive(): Promise<void>;
+    restore(): Promise<void>;
 }

@@ -14,6 +14,14 @@ import { validateOptions } from './validate-options.js';
 // Migraciones
 import { applyMigrations } from '../features/migrations.js';
 
+// IndexedDB
+import { 
+    dbDelete, 
+    dbGet, 
+    dbSet, 
+    openDB 
+} from '../features/heavy-storage/indexeddb-driver.js';
+
 function registerSchema (
     prefix: string, 
     schema: any, 
@@ -133,6 +141,39 @@ export function createStorage<T extends StorageSchema>(
             }
         }
     }
+
+    result.archive = async () => {
+        const db = await openDB('typed-storage-archive');
+
+        for (const key of keys) {
+            const rawValue = sto.getItem(
+                options?.prefix ? `${options.prefix}:${key}` : key
+            );
+
+            if (rawValue) {
+                await dbSet(db, `${options?.prefix ?? ''}:${key}`, rawValue);
+                result[key].remove(); // libera espacio real en localStorage
+            }
+        }
+    };
+
+    result.restore = async () => {
+        const db = await openDB('typed-storage-archive');
+
+        for (const key of keys) {
+            const archiveKey = `${options?.prefix ?? ''}:${key}`;
+            const rawValue = await dbGet(db, archiveKey);
+
+            if (rawValue) {
+                // Parseamos el valor crudo guardado y lo pasamos por .set()
+                // para que el signal se actualice correctamente
+                const parsed = JSON.parse(rawValue);
+                const actualValue = parsed.value !== undefined ? parsed.value : parsed;
+                result[key].set(actualValue); // ← esto SÍ notifica al signal
+                await dbDelete(db, archiveKey);
+            }
+        }
+    };
 
     return result as StorageResult<T>;
 }

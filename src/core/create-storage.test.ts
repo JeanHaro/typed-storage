@@ -1,4 +1,4 @@
-import { expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createStorage } from './create-storage';
 
 it('debe registrar el tipo de cada propiedad del schema', () => {
@@ -265,4 +265,49 @@ it('con __once: true, el estado "usado" persiste en localStorage entre instancia
 
     storage2.setRoute('/page2');
     expect(storage2.theme()).toBe('purple'); // NO se reaplica, sobrevivió el "reload"
+});
+
+// Test de archive/restore
+import 'fake-indexeddb/auto';
+
+describe('archive() y restore()', () => {
+    it('archive() debe mover el dato a IndexedDB y borrarlo de localStorage', async () => {
+        const storage = createStorage({
+            formDraft: { title: '' }
+        }, { prefix: 'archive-test-1' });
+
+        storage.formDraft.set({ title: 'Mi borrador' });
+        expect(localStorage.getItem('archive-test-1:formDraft')).not.toBeNull();
+
+        await storage.archive();
+
+        expect(localStorage.getItem('archive-test-1:formDraft')).toBeNull();
+    });
+
+    it('restore() debe traer de vuelta el dato desde IndexedDB', async () => {
+        const storage = createStorage({
+            formDraft: { title: '' }
+        }, { prefix: 'archive-test-2' });
+
+        storage.formDraft.set({ title: 'Mi borrador' });
+        await storage.archive();
+
+        // Confirma que se borró
+        expect(storage.formDraft()).toEqual({ title: '' }); // initialValue
+
+        await storage.restore();
+
+        expect(storage.formDraft()).toEqual({ title: 'Mi borrador' });
+        expect(localStorage.getItem('archive-test-2:formDraft')).not.toBeNull();
+    });
+
+    it('restore() sin datos archivados no debe hacer nada', async () => {
+        const storage = createStorage({
+            formDraft: { title: '' }
+        }, { prefix: 'archive-test-3' });
+
+        await storage.restore(); // nada que restaurar
+
+        expect(storage.formDraft()).toEqual({ title: '' });
+    });
 });

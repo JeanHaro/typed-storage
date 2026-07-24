@@ -1,6 +1,6 @@
 {
   "name": "@jeanharo98/typed-storage",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Type-safe localStorage with reactive signals",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

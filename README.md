@@ -493,6 +493,63 @@ createStorage({
 
 ---
 
+## 📦 Archiving data to IndexedDB with `archive()` and `restore()`
+
+Unlike the automatic quota-exceeded fallback (which only kicks in when `localStorage` is full), `archive()` and `restore()` let you **intentionally** move data between `localStorage` and IndexedDB — freeing up real space while a page or feature isn't in active use, and bringing it back when needed.
+
+```typescript
+const pageStorage = createStorage({
+    formDraft: { title: '', content: '', tags: [] }
+}, { prefix: 'blog-editor' });
+
+// While the user is actively editing, data lives in localStorage (fast, sync)
+pageStorage.formDraft.set({ title: 'My post', content: '...', tags: ['tech'] });
+
+// When the user leaves the page (e.g. in a router navigation hook,
+// or a component's cleanup/unmount):
+await pageStorage.archive();
+// → moves the data to IndexedDB, then removes it from localStorage,
+//   actually freeing that space (unlike moving between localStorage keys)
+
+// When the user comes back to the page:
+await pageStorage.restore();
+// → reads from IndexedDB, writes it back into localStorage via .set()
+//   (so the signal updates correctly), then clears the IndexedDB copy
+```
+
+### Why this is different from the quota-exceeded fallback
+
+```
+Quota-exceeded fallback (automatic):
+  → Only triggers when localStorage.setItem() actually fails
+  → Reactive — you don't control when it happens
+
+archive() / restore() (manual):
+  → You decide exactly when to archive — e.g. leaving a specific page
+  → Useful even when localStorage isn't full — the goal is keeping
+    localStorage lean while data isn't actively being used
+```
+
+### Both methods are async
+
+Since IndexedDB is inherently asynchronous, `archive()` and `restore()` return Promises — they don't block your synchronous `.set()`/`()` calls, but you should `await` them (or handle them as Promises) when you need to know they've completed:
+
+```typescript
+// Angular — archive on component destroy
+ngOnDestroy(): void {
+    this.storageService.storage.archive();
+}
+
+// React — archive on unmount
+useEffect(() => {
+    return () => {
+        storage.archive();
+    };
+}, []);
+```
+
+---
+
 ## 🔁 Automatic fallback to IndexedDB on quota exceeded
 
 If `localStorage.setItem()` fails specifically because the browser's storage quota was exceeded (`QuotaExceededError`), `typed-storage` automatically backs up that value to IndexedDB instead of losing it or throwing an uncaught error:
@@ -936,6 +993,8 @@ Combines one or more `StorageSignal`s into a derived reactive value. Returns a f
 | `destroy()` | Calls `remove()` on all keys — completely removes them from storage |
 | `batch(values)` | Updates multiple keys in a single call |
 | `setRoute(route)` | Applies the `routeOverrides` entry matching `route`, if any |
+| `archive()` | Moves all schema keys to IndexedDB and removes them from `localStorage`. Async |
+| `restore()` | Brings back archived keys from IndexedDB into `localStorage`, updating signals. Async |
 
 ---
 
