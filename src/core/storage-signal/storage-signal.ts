@@ -170,6 +170,7 @@ export function createStorageSignal<T>(
 
     signalBase.reset = function (): void {
         currentValue = initialValue;
+        currentUpdatedAt = Date.now();
         notify(currentValue);
 
         // Dispara onReset para cada plugin
@@ -177,12 +178,39 @@ export function createStorageSignal<T>(
             plugin.onReset?.(originalKey);
         });
 
-        const dataToStore = JSON.stringify(initialValue);
-        const finalData = options?.compress
+        const dataToStore = JSON.stringify({
+            value: initialValue,
+            expiresAt: options?.ttl ? Date.now() + options.ttl : undefined,
+            updatedAt: currentUpdatedAt
+        });
+
+        let finalData = options?.compress
             ? LZString.compressToBase64(dataToStore)
             : dataToStore;
 
-        sto.setItem(key, finalData);
+        if (options?.encrypt && options?.secret) {
+            finalData = xorEncrypt(finalData, options.secret);
+        }
+
+        try {
+            sto.setItem(key, finalData);
+        } catch (error) {
+            if (isQuotaExceededError(error)) {
+                console.warn(`typed-storage: cuota excedida al guardar "${key}", respaldando en IndexedDB`);
+                backupToIndexedDB(key, finalData);
+            } else {
+                throw error;
+            }
+        }
+
+        if (options?.onQuotaWarning && sto instanceof Storage) {
+            const percent = getUsagePercent(sto);
+            const threshold = options.quotaThreshold ?? 80;
+
+            if (percent >= threshold) {
+                options.onQuotaWarning(percent);
+            }
+        }
     };
 
     signalBase.has = function (): boolean {

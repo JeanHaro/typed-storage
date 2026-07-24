@@ -200,6 +200,29 @@ describe('encrypt option', () => {
             expect(signal()).toBe(texto);
         }
     });
+
+    it('reset() también debe encriptar el valor (no debe filtrar el texto plano)', () => {
+        const signal = createStorageSignal('token', '', {
+            encrypt: true,
+            secret: 'mi-clave'
+        });
+
+        signal.set('valor-secreto');
+        signal.reset(); // vuelve al initialValue (string vacío en este caso)
+
+        // Probemos con un initialValue no vacío para verificar de verdad
+        const signal2 = createStorageSignal('token2', 'valor-inicial-secreto', {
+            encrypt: true,
+            secret: 'mi-clave'
+        });
+
+        signal2.set('otro-valor');
+        signal2.reset();
+
+        const rawStored = localStorage.getItem('token2');
+        expect(rawStored).not.toContain('valor-inicial-secreto');
+        expect(signal2()).toBe('valor-inicial-secreto');
+    });
 });
 
 // Compress + Encrypt
@@ -465,6 +488,30 @@ describe('conflictResolution: timestamp', () => {
 
         // Sin conflictResolution, se aplica siempre (Last Write Wins normal)
         expect(signal()).toBe('valorRemotoViejo');
+    });
+
+    it('reset() debe actualizar el timestamp para que conflictResolution funcione correctamente', () => {
+        const signal = createStorageSignal('cart4', 'inicial', {
+            sync: true,
+            conflictResolution: 'timestamp'
+        });
+
+        signal.set('valorViejo');
+        signal.reset(); // esto debe actualizar currentUpdatedAt a "ahora"
+
+        // Simula un cambio remoto MÁS ANTIGUO que el reset
+        const oldEvent = new StorageEvent('storage', {
+            key: 'cart4',
+            newValue: JSON.stringify({
+                value: 'valorRemotoViejo',
+                updatedAt: Date.now() - 10000
+            })
+        });
+
+        window.dispatchEvent(oldEvent);
+
+        // No debe cambiar — el reset() fue más reciente
+        expect(signal()).toBe('inicial');
     });
 });
 

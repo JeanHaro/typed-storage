@@ -68,6 +68,8 @@ console.log(appStorage.theme());       // 'light'
 // Reset to initial value
 appStorage.theme.reset();
 console.log(appStorage.theme());       // 'dark'
+// reset() applies the exact same protections as set(): encrypt, compress,
+// TTL, quota handling, and conflict resolution timestamps all work identically
 
 // Check if key exists in storage
 appStorage.theme.has();                // true
