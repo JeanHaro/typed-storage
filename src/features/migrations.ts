@@ -4,6 +4,20 @@ import { safeParseJSON } from '../core/storage-signal/read-value.js';
 import { StorageSignalOptions } from '../types.js';
 import { MemoryStorage } from '../core/memory-storage.js';
 
+const RESERVED_KEYS_PATTERN = /^(__typed-storage__|__typed-storage-schema__|.*__route-once__)$/;
+
+function matchesPrefix(key: string, prefix: string): boolean {
+    if (RESERVED_KEYS_PATTERN.test(key)) return false;
+
+    if (prefix === '') {
+        // Sin prefix no hay separador ':' que buscar —
+        // solo excluimos las keys internas reservadas
+        return true;
+    }
+
+    return key.startsWith(`${prefix}:`);
+}
+
 export function applyMigrations(
     prefix: string,
     currentVersion: number,
@@ -28,13 +42,12 @@ export function applyMigrations(
     for (let i = 0; i < storage.length; i++) {
         const key = storage.key(i);
 
-        if (key && key.startsWith(prefix) && key !== versionKey) {
+        if (key && matchesPrefix(key, prefix) && key !== versionKey) {
             const rawValue = storage.getItem(key);
 
             if (rawValue) {
                 let processedValue = rawValue;
 
-                // Desencriptamos
                 if (options?.encrypt && options?.secret) {
                     try {
                         processedValue = xorDecrypt(processedValue, options.secret);
@@ -43,14 +56,12 @@ export function applyMigrations(
                     }
                 }
 
-                // Descomprimimos
                 if (options?.compress && processedValue) {
                     processedValue = LZString.decompressFromBase64(processedValue);
                 }
 
-                // Desempaquetamos el formato {value, expiresAt, updatedAt}
                 const item = safeParseJSON(processedValue, undefined);
-                const cleanKey = key.replace(`${prefix}:`, '');
+                const cleanKey = prefix ? key.replace(`${prefix}:`, '') : key;
                 currentData[cleanKey] = item.value;
             }
         }
@@ -67,7 +78,6 @@ export function applyMigrations(
         version++;
     }
 
-    // Guardamos los datos migrados, re-empaquetando y re-protegiendo cada uno
     for (const [key, value] of Object.entries(currentData)) {
         const dataToStore = JSON.stringify({ value });
 
@@ -79,7 +89,8 @@ export function applyMigrations(
             finalData = xorEncrypt(finalData, options.secret);
         }
 
-        storage.setItem(`${prefix}:${key}`, finalData);
+        const fullKey = prefix ? `${prefix}:${key}` : key;
+        storage.setItem(fullKey, finalData);
     }
 
     storage.setItem(versionKey, String(currentVersion));

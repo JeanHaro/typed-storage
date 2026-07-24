@@ -140,4 +140,44 @@ describe('applyMigrations', () => {
         expect(rawStored).not.toContain('fontSize');
         expect(rawStored).not.toContain('16');
     });
+
+    it('NO debe afectar keys de un prefix parecido (ej: "app" vs "approved")', () => {
+        localStorage.setItem('app__version__', '1');
+        localStorage.setItem('app:theme', JSON.stringify({ value: 'dark' }));
+
+        // Key de un prefix TOTALMENTE distinto, que coincide como substring
+        localStorage.setItem('approved:setting', JSON.stringify({ value: 'no debe tocarse' }));
+
+        applyMigrations('app', 2, {
+            1: (oldData) => ({
+                theme: oldData.theme
+            })
+        }, localStorage);
+
+        // La key de "approved" NO debe haber sido tocada ni migrada
+        expect(localStorage.getItem('approved:setting')).toBe(
+            JSON.stringify({ value: 'no debe tocarse' })
+        );
+    });
+
+    it('con prefix vacío, NO debe corromper los registros internos de typed-storage', () => {
+        localStorage.setItem('__version__', '1');
+        localStorage.setItem('theme', JSON.stringify({ value: 'dark' }));
+
+        // Registros internos que NUNCA deben ser tocados por migrations
+        localStorage.setItem('__typed-storage__', JSON.stringify(['app']));
+        localStorage.setItem('__typed-storage-schema__', JSON.stringify({ app: { theme: 'string' } }));
+
+        applyMigrations('', 2, {
+            1: (oldData) => ({
+                theme: oldData.theme
+            })
+        }, localStorage);
+
+        // Los registros internos deben seguir intactos, sin modificar
+        expect(localStorage.getItem('__typed-storage__')).toBe(JSON.stringify(['app']));
+        expect(localStorage.getItem('__typed-storage-schema__')).toBe(
+            JSON.stringify({ app: { theme: 'string' } })
+        );
+    });
 });

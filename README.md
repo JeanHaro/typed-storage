@@ -798,6 +798,10 @@ createStorage(schema, {
      and unwrapping the internal {value, expiresAt, updatedAt} format
      so your migration functions receive plain values (e.g. oldData.theme
      is 'dark', not an internal wrapper object)
+   → matches keys precisely (using 'prefix:' as a boundary, not just
+     any key that happens to start with the same characters — e.g.
+     prefix 'app' never matches an unrelated key like 'approved:x')
+     and always excludes typed-storage's own internal registry keys
    → applies each migration in order (v1→v2, v2→v3, etc.)
    → saves migrated data back to localStorage, re-applying compress/encrypt
      if those options are set, so migrated data stays protected
