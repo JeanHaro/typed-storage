@@ -337,7 +337,7 @@ appStorage.theme(); // → 'dark' — NOT reset to 'light', the override already
 
 `__once` doesn't restrict the user from changing the value afterward — it only stops the *automatic override* from reimposing itself. The user (or your app) can keep calling `.set()` freely, forever, exactly like any other value.
 
-The "already applied" state is stored in `localStorage` (under a `prefix__route-once__` key), so it survives full page reloads — it's not just an in-memory flag that resets when the user refreshes the browser.
+The "already applied" state is stored in `localStorage` (under a `prefix__route-once__` key), so it survives full page reloads — it's not just an in-memory flag that resets when the user refreshes the browser. Calling `destroy()` on the whole `StorageResult` also clears this registry for that prefix, so any `__once` overrides can be applied again from scratch — this is expected, since `destroy()` is meant to fully reset the storage as if it had never been used.
 
 ```
 Without __once → the override always wins on every visit to that route

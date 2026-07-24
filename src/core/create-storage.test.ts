@@ -42,6 +42,56 @@ it('destroy() debe eliminar completamente todas las keys del schema', () => {
     expect(storage.fontSize()).toBe(16);
 });
 
+// Destroy con once
+describe('destroy() limpia el registro __route-once__', () => {
+    it('debe borrar el registro de __once para ese prefix al destruir', () => {
+        const storage = createStorage({
+            theme: 'dark' as 'dark' | 'light'
+        }, {
+            prefix: 'destroy-once',
+            routeOverrides: {
+                '/page1': { theme: 'light', __once: true }
+            }
+        });
+
+        storage.setRoute('/page1');
+        expect(localStorage.getItem('destroy-once__route-once__')).not.toBeNull();
+
+        storage.destroy();
+
+        expect(localStorage.getItem('destroy-once__route-once__')).toBeNull();
+    });
+
+    it('después de destroy(), el __once debe poder aplicarse de nuevo', () => {
+        const storage = createStorage({
+            theme: 'dark' as 'dark' | 'light'
+        }, {
+            prefix: 'destroy-once-2',
+            routeOverrides: {
+                '/page1': { theme: 'light', __once: true }
+            }
+        });
+
+        storage.setRoute('/page1'); // se aplica y se "gasta"
+        storage.theme.set('purple' as any);
+
+        storage.destroy(); // limpia todo, incluido el registro de __once
+
+        // Nueva instancia con el mismo prefix, después de destroy()
+        const storage2 = createStorage({
+            theme: 'dark' as 'dark' | 'light'
+        }, {
+            prefix: 'destroy-once-2',
+            routeOverrides: {
+                '/page1': { theme: 'light', __once: true }
+            }
+        });
+
+        storage2.setRoute('/page1');
+        expect(storage2.theme()).toBe('light'); // se vuelve a aplicar, como la primera vez
+    });
+});
+
 // Test del batch
 it('batch() debe actualizar múltiples valores en una sola llamada', () => {
     const storage = createStorage({

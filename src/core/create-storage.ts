@@ -103,6 +103,10 @@ export function createStorage<T extends StorageSchema>(
         for (let key of keys) {
             result[key].remove(); 
         }
+
+        // Limpia también el registro de __once para este prefix
+        const onceKey = `${options?.prefix ?? ''}__route-once__`;
+        sto.removeItem(onceKey);
     }
 
     result.batch = (values: Partial<T>) => {
