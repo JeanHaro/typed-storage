@@ -438,3 +438,37 @@ describe('plugins', () => {
         expect(plugin2.onCreate).toHaveBeenCalled();
     });
 });
+
+describe('result no debe romperse con keys reservadas de Array', () => {
+    beforeEach(() => localStorage.clear());
+
+    it('debe funcionar correctamente con una key llamada "length"', () => {
+        const storage = createStorage({
+            length: 100
+        }, { prefix: 'array-safety-1' });
+
+        expect(storage.length()).toBe(100);
+
+        storage.length.set(200);
+        expect(storage.length()).toBe(200);
+    });
+
+    it('debe funcionar correctamente con una key llamada "push"', () => {
+        const storage = createStorage({
+            push: 'valor'
+        }, { prefix: 'array-safety-2' });
+
+        expect(storage.push()).toBe('valor');
+
+        storage.push.set('otro valor');
+        expect(storage.push()).toBe('otro valor');
+    });
+
+    it('debe funcionar correctamente con una key llamada "map"', () => {
+        const storage = createStorage({
+            map: { data: 'test' }
+        }, { prefix: 'array-safety-3' });
+
+        expect(storage.map()).toEqual({ data: 'test' });
+    });
+});

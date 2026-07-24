@@ -88,7 +88,7 @@ export function createStorage<T extends StorageSchema>(
     registerPrefix(options?.prefix ?? '', sto);
     registerSchema(options?.prefix ?? '', schema, sto);
 
-    const result: any = [];
+    const result: any = {};
 
     let keys = Object.keys(schema);
     for ( let key of keys ) {
