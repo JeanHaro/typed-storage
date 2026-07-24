@@ -88,6 +88,11 @@ export function createStorage<T extends StorageSchema>(
         result[key] = createStorageSignal(key, schema[key], options)
     }
 
+    // Dispara onCreate para cada plugin registrado
+    options?.plugins?.forEach( plugin => {
+        plugin.onCreate?.(schema, options);
+    });
+
     result.clear = () => {
         for ( let key of keys ) {
             result[key].reset(); // Limpiamos todas las keys del schema

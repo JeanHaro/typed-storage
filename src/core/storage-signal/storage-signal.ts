@@ -103,13 +103,19 @@ export function createStorageSignal<T>(
     signalBase.set = function (newValue: T): void {
         const validation = validateValue(newValue, validator);
 
-        if (!validation.valid) {
+        if ( !validation.valid ) {
             throw new Error(`typed-storage: valor inválido para "${originalKey}": ${validation.error}`);
         }
 
+        const oldValue = currentValue; // capturamos el valor anterior
         currentValue = newValue;
         currentUpdatedAt = Date.now();
         notify(currentValue);
+
+        // Dispara onSet para cada plugin
+        options?.plugins?.forEach( plugin => {
+            plugin.onSet?.(originalKey, newValue, oldValue);
+        });  
 
         const dataToStore = JSON.stringify({
             value: newValue,
@@ -150,6 +156,11 @@ export function createStorageSignal<T>(
         currentValue = initialValue;
         notify(currentValue);
 
+        // Dispara onReset para cada plugin
+        options?.plugins?.forEach( plugin => {
+            plugin.onReset?.(originalKey);
+        });
+
         const dataToStore = JSON.stringify(initialValue);
         const finalData = options?.compress
             ? LZString.compress(dataToStore)
@@ -166,6 +177,11 @@ export function createStorageSignal<T>(
         sto.removeItem(key);
         currentValue = initialValue;
         notify(currentValue);
+
+        // Dispara onRemove para cada plugin
+        options?.plugins?.forEach( plugin => {
+            plugin.onRemove?.(originalKey);
+        });
     };
 
     signalBase.onChange = function (callback: (value: T) => void): void {

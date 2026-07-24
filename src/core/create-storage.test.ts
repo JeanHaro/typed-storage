@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStorage } from './create-storage';
 
 it('debe registrar el tipo de cada propiedad del schema', () => {
@@ -309,5 +309,42 @@ describe('archive() y restore()', () => {
         await storage.restore(); // nada que restaurar
 
         expect(storage.formDraft()).toEqual({ title: '' });
+    });
+});
+
+// Plugins
+describe('plugins', () => {
+    beforeEach(() => localStorage.clear());
+
+    it('debe llamar onCreate al crear el storage', () => {
+        const onCreate = vi.fn();
+        const plugin = { onCreate };
+
+        createStorage({
+            theme: 'dark'
+        }, {
+            prefix: 'plugin-test-1',
+            plugins: [plugin]
+        });
+
+        expect(onCreate).toHaveBeenCalledWith(
+            { theme: 'dark' },
+            expect.objectContaining({ prefix: 'plugin-test-1' })
+        );
+    });
+
+    it('debe soportar múltiples plugins a la vez', () => {
+        const plugin1 = { onCreate: vi.fn() };
+        const plugin2 = { onCreate: vi.fn() };
+
+        createStorage({
+            theme: 'dark'
+        }, {
+            prefix: 'plugin-test-2',
+            plugins: [plugin1, plugin2]
+        });
+
+        expect(plugin1.onCreate).toHaveBeenCalled();
+        expect(plugin2.onCreate).toHaveBeenCalled();
     });
 });

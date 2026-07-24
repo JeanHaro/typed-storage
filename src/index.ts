@@ -5,5 +5,6 @@ export type {
     StorageSignal, 
     StorageSchema, 
     StorageResult, 
-    StorageSignalOptions 
+    StorageSignalOptions ,
+    Plugin
 } from './types.js';

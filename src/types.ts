@@ -1,3 +1,10 @@
+export interface Plugin {
+    onCreate?: ( schema: StorageSchema, options?: StorageSignalOptions ) => void;
+    onSet?: ( key: string, newValue: any, oldValue: any ) => void;
+    onRemove?: ( key: string ) => void;
+    onReset?: ( key: string ) => void;
+}
+
 // Aceptamos cualquier "validator"
 export interface Validator {
     safeParse(value: any): { success: boolean, error?: any }
@@ -19,6 +26,7 @@ export interface StorageSignalOptions {
     onQuotaWarning?: ( percentUsed: number ) => void;
     quotaThreshold?: number; // default 80
     conflictResolution?: 'last-write-wins' | 'timestamp'; // default: 'last-write-wins'
+    plugins?: Plugin[];
 }
 
 // Objeto reactivo con getter, setter y reset

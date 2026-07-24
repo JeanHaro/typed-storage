@@ -493,6 +493,63 @@ createStorage({
 
 ---
 
+## 🔌 Plugin system
+
+Extend `typed-storage` without forking it. A plugin is a plain object with optional hook functions that fire at key moments:
+
+```typescript
+import { createStorage, Plugin } from 'typed-storage';
+
+const loggerPlugin: Plugin = {
+    onCreate: (schema, options) => {
+        console.log('[Plugin] storage created with schema:', schema);
+    },
+    onSet: (key, newValue, oldValue) => {
+        console.log(`[Plugin] "${key}" changed:`, oldValue, '→', newValue);
+    },
+    onReset: (key) => {
+        console.log(`[Plugin] "${key}" was reset`);
+    },
+    onRemove: (key) => {
+        console.log(`[Plugin] "${key}" was removed`);
+    }
+};
+
+const appStorage = createStorage({
+    theme: 'dark' as 'dark' | 'light'
+}, {
+    plugins: [loggerPlugin]
+});
+
+appStorage.theme.set('light'); // → "[Plugin] "theme" changed: dark → light"
+```
+
+### Available hooks
+
+| Hook | Called when | Signature |
+|------|-------------|-----------|
+| `onCreate` | Once, when `createStorage()` runs | `(schema, options?) => void` |
+| `onSet` | Every `.set()` call | `(key, newValue, oldValue) => void` |
+| `onReset` | Every `.reset()` call | `(key) => void` |
+| `onRemove` | Every `.remove()` call | `(key) => void` |
+
+All hooks are optional — implement only what your plugin needs. Multiple plugins can be registered at once via the `plugins` array, and they're called in the order they're listed.
+
+### What plugins are good for
+
+```
+✅ Logging value changes to an external service (Sentry, LogRocket)
+✅ Analytics on which keys change most often
+✅ Custom audit trails (similar in spirit to typed-storage-devtools'
+   change history, but programmatic and app-specific)
+✅ Triggering side effects when specific keys change
+   (e.g. syncing to a backend, updating document.title, etc.)
+```
+
+Plugins have zero overhead when not used — `options?.plugins?.forEach(...)` is skipped entirely if `plugins` is undefined.
+
+---
+
 ## ⚔️ Conflict resolution for cross-tab sync
 
 With `sync: true`, if two tabs change the **same** key at nearly the same moment, the last one to write "wins" by default — this is fine most of the time, but it means the earlier change is silently lost with no way to detect it happened. `conflictResolution: 'timestamp'` prevents this by ignoring incoming cross-tab changes that are **older** than what you already have locally:
@@ -828,6 +885,7 @@ const appStorage = createStorage(schema, options);
 | `onQuotaWarning` | `(percentUsed: number) => void` | — | Called after `.set()` if estimated storage usage exceeds `quotaThreshold` |
 | `quotaThreshold` | `number` | `80` | Percentage (0-100) at which `onQuotaWarning` fires |
 | `conflictResolution` | `'last-write-wins' \| 'timestamp'` | `'last-write-wins'` | With `sync: true`, `'timestamp'` ignores incoming cross-tab changes older than the current local value |
+| `plugins` | `Plugin[]` | — | Array of plugins with `onCreate`/`onSet`/`onReset`/`onRemove` hooks |
 
 Invalid combinations (`encrypt` without `secret`, `version` without `migrations`, negative `ttl`) throw a descriptive error immediately when `createStorage()` is called.
 
@@ -1038,6 +1096,19 @@ Combines one or more `StorageSignal`s into a derived reactive value. Returns a f
 | `setRoute(route)` | Applies the `routeOverrides` entry matching `route`, if any |
 | `archive()` | Moves all schema keys to IndexedDB and removes them from `localStorage`. Async |
 | `restore()` | Brings back archived keys from IndexedDB into `localStorage`, updating signals. Async |
+
+---
+
+### `Plugin`
+
+Interface for extending `typed-storage` behavior. All hooks are optional.
+
+| Hook | Signature |
+|------|-----------|
+| `onCreate?` | `(schema: StorageSchema, options?: StorageSignalOptions) => void` |
+| `onSet?` | `(key: string, newValue: any, oldValue: any) => void` |
+| `onReset?` | `(key: string) => void` |
+| `onRemove?` | `(key: string) => void` |
 
 ---
 

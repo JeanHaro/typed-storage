@@ -381,3 +381,59 @@ describe('conflictResolution: timestamp', () => {
         expect(signal()).toBe('valorRemotoViejo');
     });
 });
+
+// Plugins
+describe('plugins hooks', () => {
+    beforeEach(() => localStorage.clear());
+
+    it('debe llamar onSet con key, newValue y oldValue', () => {
+        const onSet = vi.fn();
+        const plugin = { onSet };
+
+        const signal = createStorageSignal('theme', 'dark', {
+            plugins: [plugin]
+        });
+
+        signal.set('light');
+
+        expect(onSet).toHaveBeenCalledWith('theme', 'light', 'dark');
+    });
+
+    it('debe llamar onReset con la key', () => {
+        const onReset = vi.fn();
+        const plugin = { onReset };
+
+        const signal = createStorageSignal('theme', 'dark', {
+            plugins: [plugin]
+        });
+
+        signal.set('light');
+        signal.reset();
+
+        expect(onReset).toHaveBeenCalledWith('theme');
+    });
+
+    it('debe llamar onRemove con la key', () => {
+        const onRemove = vi.fn();
+        const plugin = { onRemove };
+
+        const signal = createStorageSignal('theme', 'dark', {
+            plugins: [plugin]
+        });
+
+        signal.set('light');
+        signal.remove();
+
+        expect(onRemove).toHaveBeenCalledWith('theme');
+    });
+
+    it('sin plugins, no debe fallar ni hacer nada especial', () => {
+        const signal = createStorageSignal('theme', 'dark');
+
+        expect(() => {
+            signal.set('light');
+            signal.reset();
+            signal.remove();
+        }).not.toThrow();
+    });
+});
