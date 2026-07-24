@@ -96,4 +96,24 @@ describe('createHeavyStorage', () => {
         expect(photos).toEqual([]);
     });
 
+    it('onChange debe retornar una función de unsubscribe', async () => {
+        const heavyStorage = createHeavyStorage({
+            documents: [] as any[]
+        }, {
+            dbName: 'test-db-6'
+        });
+
+        const callback = vi.fn();
+        const unsubscribe = heavyStorage.documents.onChange(callback);
+
+        expect(typeof unsubscribe).toBe('function');
+
+        await heavyStorage.documents.set([{ id: 1 }]);
+        expect(callback).toHaveBeenCalledTimes(1);
+
+        unsubscribe();
+
+        await heavyStorage.documents.set([{ id: 2 }]);
+        expect(callback).toHaveBeenCalledTimes(1); // sigue en 1, no en 2
+    });
 });

@@ -868,7 +868,7 @@ If you only need small values (theme, language, settings), stick with `createSto
 | `signal.get()` | Returns a Promise with the current value |
 | `signal.set(value)` | Stores the value, returns a Promise |
 | `signal.remove()` | Deletes the value, returns a Promise |
-| `signal.onChange(cb)` | Subscribes to value changes (called synchronously after set/remove) |
+| `signal.onChange(cb)` | Subscribes to value changes (called synchronously after set/remove). Returns an unsubscribe function |
 
 ---
 

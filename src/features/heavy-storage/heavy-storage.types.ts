@@ -7,7 +7,7 @@ export interface HeavySignal<T> {
     get(): Promise<T>;
     set(value: T): Promise<void>;
     remove(): Promise<void>;
-    onChange(callback: (value: T) => void): void;
+    onChange(callback: (value: T) => void): () => void;
 }
 
 // ==============================================

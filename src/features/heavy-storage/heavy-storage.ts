@@ -58,8 +58,16 @@ export function createHeavySignal<T>(
         notify(initialValue);
     };
 
-    signal.onChange = function ( callback: (value: T) => void ): void {
+    signal.onChange = function ( callback: (value: T) => void ): () => void {
         listeners.push(callback);
+
+        return () => {
+            const index = listeners.indexOf(callback);
+            
+            if (index !== -1) {
+                listeners.splice(index, 1);
+            }
+        };
     };
 
     return signal as HeavySignal<T>;
