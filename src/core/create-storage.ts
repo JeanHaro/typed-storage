@@ -6,7 +6,7 @@ import {
 } from '../types.js';
 
 // Storage Signal
-import { createStorageSignal } from './storage-signal.js';
+import { createStorageSignal } from './storage-signal/storage-signal.js';
 
 // Validaciones
 import { validateOptions } from './validate-options.js';

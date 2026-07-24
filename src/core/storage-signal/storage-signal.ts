@@ -1,0 +1,171 @@
+import LZString from 'lz-string';
+
+import { readInitialValue, safeParseJSON } from "./read-value.js";
+import { setupSyncListener } from "./sync-listener.js";
+
+// Xor
+import { xorEncrypt } from "../../features/xor.js";
+
+// MemoryStorage
+import { MemoryStorage } from "../memory-storage.js";
+
+// Types
+import { 
+    StorageSignal, 
+    StorageSignalOptions 
+} from "../../types.js";
+
+// Validate
+import { validateValue } from "../../features/validate-schema.js";
+
+// Quota
+import { getUsagePercent } from "../../features/quota-monitor.js";
+
+// Quota Fallback
+import { 
+    backupToIndexedDB, 
+    restoreFromIndexedDB 
+} from "../../features/quota-fallback.js";
+
+function isQuotaExceededError ( err: unknown ): boolean {
+    return (
+        err instanceof DOMException &&
+        (err.name === 'QuotaExceededError' || err.code === 22)
+    );
+}
+
+// Obtenemos el valor del localStorage o SessionStorage, sino MemoryStorage
+function getStorage ( type: 'local' | 'session' ): Storage | MemoryStorage {
+    try {
+        const sto = type === 'session' ? sessionStorage : localStorage;
+        sto.setItem('__typed_storage_test__', '1');
+        sto.removeItem('__typed_storage_test__');
+
+        return sto;
+    } catch {
+        console.warn('Storage no disponible, usando memoria como fallback');
+
+        return new MemoryStorage();
+    }
+}
+
+// Creamos el Storage en modo signal
+export function createStorageSignal<T>(
+    key: string,
+    initialValue: T,
+    options?: StorageSignalOptions
+): StorageSignal<T> {
+    const originalKey = key;
+    const validator = options?.validate?.[originalKey];
+
+    let sto = getStorage(options?.storage ?? 'local');
+
+    if (options?.prefix) {
+        key = `${options.prefix}:${key}`;
+    }
+
+    // Lectura inicial — delegado al módulo extraído
+    const { currentValue: initialCurrentValue, hadSavedData } = readInitialValue(key, initialValue, sto, options);
+    let currentValue: T = initialCurrentValue;
+
+    const listeners: Array<(value: T) => void> = [];
+    function notify(value: T): void {
+        listeners.forEach(cb => cb(value));
+    }
+
+    // Intenta recuperar de IndexedDB si no había nada en localStorage
+    if (!hadSavedData) {
+        restoreFromIndexedDB(key).then((backupData) => {
+            if (backupData) {
+                const restoredItem = safeParseJSON(backupData, initialValue);
+                currentValue = restoredItem.value;
+                notify(currentValue);
+            }
+        });
+    }
+
+    const signalBase = function (): T {
+        return currentValue;
+    };
+
+    // Sync entre tabs — delegado al módulo extraído
+    setupSyncListener(
+        key,
+        initialValue,
+        options,
+        (value: T) => { currentValue = value; },
+        notify
+    );
+
+    signalBase.set = function (newValue: T): void {
+        const validation = validateValue(newValue, validator);
+
+        if (!validation.valid) {
+            throw new Error(`typed-storage: valor inválido para "${originalKey}": ${validation.error}`);
+        }
+
+        currentValue = newValue;
+        notify(currentValue);
+
+        const dataToStore = JSON.stringify({
+            value: newValue,
+            expiresAt: options?.ttl ? Date.now() + options.ttl : undefined
+        });
+
+        let finalData = options?.compress
+            ? LZString.compress(dataToStore)
+            : dataToStore;
+
+        if (options?.encrypt && options?.secret) {
+            finalData = xorEncrypt(finalData, options.secret);
+        }
+
+        try {
+            sto.setItem(key, finalData);
+        } catch (error) {
+            if (isQuotaExceededError(error)) {
+                console.warn(`typed-storage: cuota excedida al guardar "${key}", respaldando en IndexedDB`);
+                backupToIndexedDB(key, finalData);
+            } else {
+                throw error;
+            }
+        }
+
+        if (options?.onQuotaWarning && sto instanceof Storage) {
+            const percent = getUsagePercent(sto);
+            const threshold = options.quotaThreshold ?? 80;
+
+            if (percent >= threshold) {
+                options.onQuotaWarning(percent);
+            }
+        }
+    };
+
+    signalBase.reset = function (): void {
+        currentValue = initialValue;
+        notify(currentValue);
+
+        const dataToStore = JSON.stringify(initialValue);
+        const finalData = options?.compress
+            ? LZString.compress(dataToStore)
+            : dataToStore;
+
+        sto.setItem(key, finalData);
+    };
+
+    signalBase.has = function (): boolean {
+        return !!sto.getItem(key);
+    };
+
+    signalBase.remove = function (): void {
+        sto.removeItem(key);
+        currentValue = initialValue;
+        notify(currentValue);
+    };
+
+    signalBase.onChange = function (callback: (value: T) => void): void {
+        listeners.push(callback);
+    };
+
+    return signalBase as StorageSignal<T>;
+}
