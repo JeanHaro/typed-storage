@@ -78,7 +78,8 @@ export function createStorage<T extends StorageSchema>(
             prefix,
             options.version,
             options.migrations,
-            sto
+            sto,
+            options
         );
     }
 

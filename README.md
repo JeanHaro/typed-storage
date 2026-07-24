@@ -787,9 +787,14 @@ createStorage(schema, {
 2. If no version saved → new install, saves current version and continues
 
 3. If saved version < current version:
-   → reads all current data from localStorage
+   → reads all current data from localStorage, correctly decrypting
+     and decompressing each value first if those options were used,
+     and unwrapping the internal {value, expiresAt, updatedAt} format
+     so your migration functions receive plain values (e.g. oldData.theme
+     is 'dark', not an internal wrapper object)
    → applies each migration in order (v1→v2, v2→v3, etc.)
-   → saves migrated data back to localStorage
+   → saves migrated data back to localStorage, re-applying compress/encrypt
+     if those options are set, so migrated data stays protected
    → updates the version key
 
 4. If saved version === current version → nothing to do
