@@ -85,6 +85,28 @@ describe('onChange', () => {
         theme.reset();
         expect(callback).toHaveBeenCalledWith('dark');
     });
+
+    it('onChange debe retornar una función de unsubscribe', () => {
+        const theme = createStorageSignal('theme', 'dark');
+        const callback = vi.fn();
+        const unsubscribe = theme.onChange(callback);
+
+        expect(typeof unsubscribe).toBe('function');
+    });
+
+    it('después de unsubscribe, el callback ya no debe ser llamado', () => {
+        const theme = createStorageSignal('theme', 'dark');
+        const callback = vi.fn();
+        const unsubscribe = theme.onChange(callback);
+
+        theme.set('light'); // primer cambio — SÍ debe llamar el callback
+        expect(callback).toHaveBeenCalledTimes(1);
+
+        unsubscribe();
+
+        theme.set('dark'); // segundo cambio — NO debe llamar el callback
+        expect(callback).toHaveBeenCalledTimes(1); // sigue en 1, no en 2
+    });
 });
 
 describe('compress option', () => {

@@ -927,10 +927,10 @@ Compression only runs when `compress: true` is explicitly set — there's zero o
 
 ## 🔔 onChange
 
-Subscribe to changes on any key:
+Subscribe to changes on any key. `onChange()` returns an unsubscribe function:
 
 ```typescript
-appStorage.theme.onChange((newValue) => {
+const unsubscribe = appStorage.theme.onChange((newValue) => {
   console.log('theme changed to:', newValue);
   document.body.setAttribute('data-theme', newValue);
 });
@@ -938,7 +938,13 @@ appStorage.theme.onChange((newValue) => {
 appStorage.theme.set('light'); // → 'theme changed to: light'
 appStorage.theme.reset();      // → 'theme changed to: dark'
 appStorage.theme.remove();     // → 'theme changed to: dark' (initialValue)
+
+// When you no longer need the subscription:
+unsubscribe();
+appStorage.theme.set('purple'); // → callback no longer fires
 ```
+
+This matters for components or code that subscribes and unsubscribes repeatedly over an app's lifetime (e.g. a modal that mounts and unmounts many times) — without calling the returned unsubscribe function, old callbacks would keep accumulating and firing indefinitely, even after the code that registered them is no longer relevant.
 
 ---
 
@@ -1083,7 +1089,7 @@ Combines one or more `StorageSignal`s into a derived reactive value. Returns a f
 | `signal.reset()` | Resets to `initialValue` and persists (key still exists) |
 | `signal.remove()` | Removes the key from storage and resets in memory |
 | `signal.has()` | Returns `true` if the key exists in storage |
-| `signal.onChange(cb)` | Subscribes to value changes |
+| `signal.onChange(cb)` | Subscribes to value changes. Returns an unsubscribe function |
 
 ### `StorageResult<T>`
 

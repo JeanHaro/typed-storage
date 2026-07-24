@@ -184,8 +184,17 @@ export function createStorageSignal<T>(
         });
     };
 
-    signalBase.onChange = function (callback: (value: T) => void): void {
+    signalBase.onChange = function (callback: (value: T) => void): () => void {
         listeners.push(callback);
+
+        // Retorna una función que quita el callback específico
+        return () => {
+            const index = listeners.indexOf(callback);
+
+            if ( index !== -1 ) {
+                listeners.splice(index, 1);
+            }
+        };
     };
 
     return signalBase as StorageSignal<T>;
