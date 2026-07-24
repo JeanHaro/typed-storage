@@ -67,9 +67,11 @@ export function createStorageSignal<T>(
     // Lectura inicial — delegado al módulo extraído
     const { currentValue: initialCurrentValue, hadSavedData } = readInitialValue(key, initialValue, sto, options);
     let currentValue: T = initialCurrentValue;
+    let currentUpdatedAt: number | undefined;
 
     const listeners: Array<(value: T) => void> = [];
-    function notify(value: T): void {
+
+    function notify (value: T): void {
         listeners.forEach(cb => cb(value));
     }
 
@@ -88,13 +90,14 @@ export function createStorageSignal<T>(
         return currentValue;
     };
 
-    // Sync entre tabs — delegado al módulo extraído
+    // Sync entre tabs, ahora pasa getCurrentUpdatedAt
     setupSyncListener(
         key,
         initialValue,
         options,
         (value: T) => { currentValue = value; },
-        notify
+        notify,
+        () => currentUpdatedAt
     );
 
     signalBase.set = function (newValue: T): void {
@@ -105,11 +108,13 @@ export function createStorageSignal<T>(
         }
 
         currentValue = newValue;
+        currentUpdatedAt = Date.now();
         notify(currentValue);
 
         const dataToStore = JSON.stringify({
             value: newValue,
-            expiresAt: options?.ttl ? Date.now() + options.ttl : undefined
+            expiresAt: options?.ttl ? Date.now() + options.ttl : undefined,
+            updatedAt: currentUpdatedAt
         });
 
         let finalData = options?.compress

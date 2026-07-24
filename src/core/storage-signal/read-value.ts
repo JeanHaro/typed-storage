@@ -11,6 +11,7 @@ import { StorageSignalOptions } from "../../types.js";
 export interface StoredValue<T> {
     value: T;
     expiresAt?: number;
+    updatedAt?: number;
 }
 
 export function safeParseJSON<T>(

@@ -18,6 +18,7 @@ export interface StorageSignalOptions {
     validate?: Record<string, Validator>;
     onQuotaWarning?: ( percentUsed: number ) => void;
     quotaThreshold?: number; // default 80
+    conflictResolution?: 'last-write-wins' | 'timestamp'; // default: 'last-write-wins'
 }
 
 // Objeto reactivo con getter, setter y reset

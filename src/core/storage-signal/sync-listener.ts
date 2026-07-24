@@ -14,7 +14,8 @@ export function setupSyncListener<T>(
     initialValue: T,
     options: StorageSignalOptions | undefined,
     setCurrentValue: (value: T) => void,
-    notify: (value: T) => void
+    notify: (value: T) => void,
+    getCurrentUpdatedAt: () => number | undefined
 ): void {
     if ( !options?.sync ) return;
 
@@ -42,6 +43,18 @@ export function setupSyncListener<T>(
             }
 
             const item = safeParseJSON(rawNewValue, initialValue);
+
+            // Conflict resolution, solo si está activado
+            if ( options?.conflictResolution === 'timestamp' ) {
+                const localUpdatedAt = getCurrentUpdatedAt() ?? 0;
+                const remoteUpdatedAt = item.updatedAt ?? 0;
+
+                if ( remoteUpdatedAt < localUpdatedAt ) {
+                    // El cambio remoto es mas antiguo, lo ignoramos
+                    return;
+                }
+            }
+
             setCurrentValue(item.value as T);
             notify(item.value as T);
         }

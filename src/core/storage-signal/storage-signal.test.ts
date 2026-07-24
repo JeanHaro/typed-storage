@@ -307,3 +307,77 @@ describe('IndexedDB fallback on quota exceeded', () => {
         setItemSpy.mockRestore();
     });
 });
+
+// Timestamp - ConflictResolution
+describe('conflictResolution: timestamp', () => {
+    beforeEach(() => localStorage.clear());
+
+    it('debe ignorar un cambio remoto MÁS ANTIGUO que el valor local', () => {
+        const signal = createStorageSignal('cart', 'inicial', {
+            sync: true,
+            conflictResolution: 'timestamp'
+        });
+
+        // El usuario cambia localmente — esto actualiza currentUpdatedAt a "ahora"
+        signal.set('valorLocalReciente');
+
+        // Simula un evento de OTRA tab con un timestamp MÁS ANTIGUO
+        const oldEvent = new StorageEvent('storage', {
+            key: 'cart',
+            newValue: JSON.stringify({
+                value: 'valorRemotoViejo',
+                updatedAt: Date.now() - 10000 // 10 segundos en el pasado
+            })
+        });
+
+        window.dispatchEvent(oldEvent);
+
+        // El valor NO debe cambiar — el cambio remoto es más antiguo
+        expect(signal()).toBe('valorLocalReciente');
+    });
+
+    it('debe aplicar un cambio remoto MÁS NUEVO que el valor local', () => {
+        const signal = createStorageSignal('cart2', 'inicial', {
+            sync: true,
+            conflictResolution: 'timestamp'
+        });
+
+        signal.set('valorLocalViejo');
+
+        // Simula un evento de otra tab con un timestamp MÁS RECIENTE
+        const newEvent = new StorageEvent('storage', {
+            key: 'cart2',
+            newValue: JSON.stringify({
+                value: 'valorRemotoNuevo',
+                updatedAt: Date.now() + 10000 // 10 segundos en el futuro
+            })
+        });
+
+        window.dispatchEvent(newEvent);
+
+        // El valor SÍ debe cambiar — el cambio remoto es más nuevo
+        expect(signal()).toBe('valorRemotoNuevo');
+    });
+
+    it('sin conflictResolution, siempre aplica el cambio remoto (comportamiento actual)', () => {
+        const signal = createStorageSignal('cart3', 'inicial', {
+            sync: true
+            // sin conflictResolution
+        });
+
+        signal.set('valorLocal');
+
+        const oldEvent = new StorageEvent('storage', {
+            key: 'cart3',
+            newValue: JSON.stringify({
+                value: 'valorRemotoViejo',
+                updatedAt: Date.now() - 10000
+            })
+        });
+
+        window.dispatchEvent(oldEvent);
+
+        // Sin conflictResolution, se aplica siempre (Last Write Wins normal)
+        expect(signal()).toBe('valorRemotoViejo');
+    });
+});

@@ -493,6 +493,48 @@ createStorage({
 
 ---
 
+## ⚔️ Conflict resolution for cross-tab sync
+
+With `sync: true`, if two tabs change the **same** key at nearly the same moment, the last one to write "wins" by default — this is fine most of the time, but it means the earlier change is silently lost with no way to detect it happened. `conflictResolution: 'timestamp'` prevents this by ignoring incoming cross-tab changes that are **older** than what you already have locally:
+
+```typescript
+const appStorage = createStorage({
+    cart: []
+}, {
+    sync: true,
+    conflictResolution: 'timestamp' // default: 'last-write-wins' (no comparison)
+});
+```
+
+```
+Tab A: cart.set([...productX])  ← at 10:00:00.100
+Tab B: cart.set([...productY])  ← at 10:00:00.150
+
+Without conflictResolution ('last-write-wins', the default):
+  → Whichever StorageEvent arrives last wins, regardless of timing
+  → Tab A's change can silently overwrite Tab B's more recent one
+    if its StorageEvent happens to be processed later
+
+With conflictResolution: 'timestamp':
+  → Every .set() records an updatedAt timestamp
+  → When a cross-tab change arrives, it's only applied if its
+    updatedAt is newer than the current local value's updatedAt
+  → An older change arriving late is ignored instead of overwriting
+    a newer one
+```
+
+### How it works
+
+Every value saved by `.set()` includes an internal `updatedAt: Date.now()` timestamp. When `sync: true` and `conflictResolution: 'timestamp'` are both set, the cross-tab listener compares the incoming change's timestamp against the current local value's timestamp before applying it — older changes are dropped silently, newer ones are applied normally.
+
+```
+conflictResolution is only relevant together with sync: true —
+it has no effect if you're not syncing across tabs, since there's
+nothing to compare against.
+```
+
+---
+
 ## 📦 Archiving data to IndexedDB with `archive()` and `restore()`
 
 Unlike the automatic quota-exceeded fallback (which only kicks in when `localStorage` is full), `archive()` and `restore()` let you **intentionally** move data between `localStorage` and IndexedDB — freeing up real space while a page or feature isn't in active use, and bringing it back when needed.
@@ -785,6 +827,7 @@ const appStorage = createStorage(schema, options);
 | `validate` | `Record<string, { safeParse(value): { success, error? } }>` | — | Optional runtime validation per key, compatible with Zod schemas |
 | `onQuotaWarning` | `(percentUsed: number) => void` | — | Called after `.set()` if estimated storage usage exceeds `quotaThreshold` |
 | `quotaThreshold` | `number` | `80` | Percentage (0-100) at which `onQuotaWarning` fires |
+| `conflictResolution` | `'last-write-wins' \| 'timestamp'` | `'last-write-wins'` | With `sync: true`, `'timestamp'` ignores incoming cross-tab changes older than the current local value |
 
 Invalid combinations (`encrypt` without `secret`, `version` without `migrations`, negative `ttl`) throw a descriptive error immediately when `createStorage()` is called.
 
