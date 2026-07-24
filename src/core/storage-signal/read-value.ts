@@ -44,16 +44,20 @@ export function readInitialValue<T>(
     options?: StorageSignalOptions
 ): { currentValue: T; hadSavedData: boolean } {
     const rawData = sto.getItem(key);
-    let savedData = options?.compress && rawData
-                                    ? LZString.decompress(rawData)
-                                    : rawData;
+    let savedData = rawData;
 
+    // Desencriptamos
     if ( options?.encrypt && options?.secret && savedData ) {
         try {
             savedData = xorDecrypt(savedData, options.secret);
         } catch {
             savedData = null;
         }
+    }
+
+    // Descomprimimos
+    if ( options?.compress && savedData ) {
+        savedData = LZString.decompressFromBase64(savedData);
     }
 
     const item = safeParseJSON(savedData!, initialValue);

@@ -30,16 +30,20 @@ export function setupSyncListener<T>(
                 return;
             }
 
-            let rawNewValue = options?.compress
-                ? LZString.decompress(event.newValue)
-                : event.newValue;
+            let rawNewValue = event.newValue;
 
+            // Desencriptamos
             if ( options?.encrypt && options?.secret ) {
                 try {
                     rawNewValue = xorDecrypt(rawNewValue, options.secret);
                 } catch {
                     rawNewValue = '';
                 }
+            }
+
+            // Descomprimimos
+            if ( options?.compress && rawNewValue ) {
+                rawNewValue = LZString.decompressFromBase64(rawNewValue);
             }
 
             const item = safeParseJSON(rawNewValue, initialValue);

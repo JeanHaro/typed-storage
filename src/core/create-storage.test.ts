@@ -381,6 +381,25 @@ describe('archive() y restore()', () => {
 
         expect(storage.formDraft()).toEqual({ title: '' });
     });
+
+    it('archive() y restore() deben funcionar correctamente con compress y encrypt activos', async () => {
+        const storage = createStorage({
+            formDraft: { title: '' }
+        }, {
+            prefix: 'archive-test-4',
+            compress: true,
+            encrypt: true,
+            secret: 'mi-clave'
+        });
+
+        storage.formDraft.set({ title: 'Mi borrador secreto y repetitivo repetitivo' });
+
+        await storage.archive();
+        expect(storage.formDraft()).toEqual({ title: '' }); // vuelve al initialValue
+
+        await storage.restore();
+        expect(storage.formDraft()).toEqual({ title: 'Mi borrador secreto y repetitivo repetitivo' });
+    });
 });
 
 // Plugins

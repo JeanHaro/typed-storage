@@ -183,6 +183,51 @@ describe('encrypt option', () => {
     });
 });
 
+// Compress + Encrypt
+describe('compress + encrypt juntos', () => {
+    beforeEach(() => localStorage.clear());
+
+    it('debe funcionar correctamente al combinar compress y encrypt', () => {
+        const signal = createStorageSignal('data', '', {
+            compress: true,
+            encrypt: true,
+            secret: 'mi-clave'
+        });
+
+        const originalValue = 'a'.repeat(100); // dato repetitivo, se beneficia de compress
+
+        signal.set(originalValue);
+
+        // El valor crudo en localStorage NO debe ser el original en texto plano
+        const rawStored = localStorage.getItem('data');
+        expect(rawStored).not.toContain(originalValue);
+
+        // Pero al leer con el signal, debe recuperarse correctamente
+        expect(signal()).toBe(originalValue);
+    });
+
+    it('debe leer correctamente compress+encrypt en una NUEVA instancia (simulando reload)', () => {
+        const signal1 = createStorageSignal('data2', '', {
+            compress: true,
+            encrypt: true,
+            secret: 'mi-clave',
+            prefix: 'reload-test'
+        });
+
+        signal1.set('mi valor secreto y repetitivo repetitivo repetitivo');
+
+        // Simula "recargar la página" — nueva instancia, mismo prefix/key
+        const signal2 = createStorageSignal('data2', '', {
+            compress: true,
+            encrypt: true,
+            secret: 'mi-clave',
+            prefix: 'reload-test'
+        });
+
+        expect(signal2()).toBe('mi valor secreto y repetitivo repetitivo repetitivo');
+    });
+});
+
 // Validations
 describe('validate option', () => {
     beforeEach(() => localStorage.clear());

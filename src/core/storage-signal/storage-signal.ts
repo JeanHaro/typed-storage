@@ -4,7 +4,7 @@ import { readInitialValue, safeParseJSON } from "./read-value.js";
 import { setupSyncListener } from "./sync-listener.js";
 
 // Xor
-import { xorEncrypt } from "../../features/xor.js";
+import { xorEncrypt, xorDecrypt } from "../../features/xor.js";
 
 // MemoryStorage
 import { MemoryStorage } from "../memory-storage.js";
@@ -79,7 +79,23 @@ export function createStorageSignal<T>(
     if (!hadSavedData) {
         restoreFromIndexedDB(key).then((backupData) => {
             if (backupData) {
-                const restoredItem = safeParseJSON(backupData, initialValue);
+                let processedData = backupData;
+
+                // Desencriptamos
+                if ( options?.encrypt && options?.secret ) {
+                    try {
+                        processedData = xorDecrypt(processedData, options.secret);
+                    } catch {
+                        processedData = '';
+                    }
+                }
+
+                // Descomprimimos
+                if ( options?.compress && processedData ) {
+                    processedData = LZString.decompressFromBase64(processedData);
+                }
+
+                const restoredItem = safeParseJSON(processedData, initialValue);
                 currentValue = restoredItem.value;
                 notify(currentValue);
             }
@@ -124,7 +140,7 @@ export function createStorageSignal<T>(
         });
 
         let finalData = options?.compress
-            ? LZString.compress(dataToStore)
+            ? LZString.compressToBase64(dataToStore)
             : dataToStore;
 
         if (options?.encrypt && options?.secret) {
@@ -163,7 +179,7 @@ export function createStorageSignal<T>(
 
         const dataToStore = JSON.stringify(initialValue);
         const finalData = options?.compress
-            ? LZString.compress(dataToStore)
+            ? LZString.compressToBase64(dataToStore)
             : dataToStore;
 
         sto.setItem(key, finalData);

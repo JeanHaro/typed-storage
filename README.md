@@ -927,6 +927,20 @@ appStorage.cart.set({ items: [...manyProducts] });
 
 Compression only runs when `compress: true` is explicitly set — there's zero overhead for the default use case.
 
+### Using `compress` together with `encrypt`
+
+Both options can be combined safely — `compress` is applied first, then `encrypt`, and the reverse order happens automatically when reading. Internally, compression uses a Base64-safe variant (`compressToBase64`/`decompressFromBase64`) specifically so the result remains valid input for the XOR + Base64 obfuscation step:
+
+```typescript
+const secureStorage = createStorage({
+    formDraft: { title: '', content: '' }
+}, {
+    compress: true,
+    encrypt: true,
+    secret: 'your-secret-key'
+});
+```
+
 ---
 
 ## 🔔 onChange

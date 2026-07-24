@@ -1,3 +1,5 @@
+import LZString from 'lz-string';
+
 // Types
 import { 
     StorageSchema, 
@@ -21,6 +23,10 @@ import {
     dbSet, 
     openDB 
 } from '../features/heavy-storage/indexeddb-driver.js';
+
+// Xor
+import { xorDecrypt } from '../features/xor.js';
+
 
 function registerSchema (
     prefix: string, 
@@ -174,11 +180,26 @@ export function createStorage<T extends StorageSchema>(
             const rawValue = await dbGet(db, archiveKey);
 
             if (rawValue) {
-                // Parseamos el valor crudo guardado y lo pasamos por .set()
-                // para que el signal se actualice correctamente
-                const parsed = JSON.parse(rawValue);
+                let processedValue = rawValue;
+
+                // Desencriptamos
+                if ( options?.encrypt && options?.secret ) {
+                    try {
+                        processedValue = xorDecrypt(processedValue, options.secret);
+                    } catch {
+                        processedValue = '';
+                    }
+                }
+
+                // Descomprimimos
+                if ( options?.compress && processedValue ) {
+                    processedValue = LZString.decompressFromBase64(processedValue);
+                }
+
+                // Parseamos el valor ya desencriptado/descomprimido
+                const parsed = JSON.parse(processedValue);
                 const actualValue = parsed.value !== undefined ? parsed.value : parsed;
-                result[key].set(actualValue); // ← esto SÍ notifica al signal
+                result[key].set(actualValue); 
                 await dbDelete(db, archiveKey);
             }
         }
