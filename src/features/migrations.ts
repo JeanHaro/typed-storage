@@ -2,12 +2,13 @@ import LZString from 'lz-string';
 import { xorEncrypt, xorDecrypt } from './xor.js';
 import { safeParseJSON } from '../core/storage-signal/read-value.js';
 import { StorageSignalOptions } from '../types.js';
+import { MemoryStorage } from '../core/memory-storage.js';
 
 export function applyMigrations(
     prefix: string,
     currentVersion: number,
     migrations: Record<number, (data: any) => any>,
-    storage: Storage,
+    storage: Storage | MemoryStorage,
     options?: StorageSignalOptions
 ): void {
     const versionKey = `${prefix}__version__`;

@@ -472,3 +472,25 @@ describe('result no debe romperse con keys reservadas de Array', () => {
         expect(storage.map()).toEqual({ data: 'test' });
     });
 });
+
+describe('createStorage() debe funcionar cuando localStorage falla completamente', () => {
+    it('no debe romper createStorage() aunque localStorage.setItem lance excepción siempre', () => {
+        // Simula que localStorage está completamente bloqueado (ej: Safari privado estricto)
+        const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(() => {
+                throw new DOMException('acceso denegado', 'SecurityError');
+            });
+
+        expect(() => {
+            const storage = createStorage({
+                theme: 'dark' as 'dark' | 'light'
+            }, { prefix: 'memory-fallback-test' });
+
+            // Debe seguir funcionando en memoria, aunque localStorage esté bloqueado
+            storage.theme.set('light');
+            expect(storage.theme()).toBe('light');
+        }).not.toThrow();
+
+        setItemSpy.mockRestore();
+    });
+});

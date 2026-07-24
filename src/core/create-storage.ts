@@ -8,7 +8,10 @@ import {
 } from '../types.js';
 
 // Storage Signal
-import { createStorageSignal } from './storage-signal/storage-signal.js';
+import { createStorageSignal, getStorage } from './storage-signal/storage-signal.js';
+
+// Memory Storage
+import { MemoryStorage } from './memory-storage.js';
 
 // Validaciones
 import { validateOptions } from './validate-options.js';
@@ -31,7 +34,7 @@ import { xorDecrypt } from '../features/xor.js';
 function registerSchema (
     prefix: string, 
     schema: any, 
-    sto: Storage
+    sto: Storage | MemoryStorage
 ): void {
     const schemaKey = '__typed-storage-schema__';
     const existing = sto.getItem(schemaKey);
@@ -48,7 +51,7 @@ function registerSchema (
 
 function registerPrefix (
     prefix: string,
-    sto: Storage
+    sto: Storage | MemoryStorage
 ): void {
     const registryKey = '__typed-storage__';
     const existing = sto.getItem(registryKey);
@@ -71,7 +74,7 @@ export function createStorage<T extends StorageSchema>(
 
     // Migraciones
     if ( options?.version && options.migrations ) {
-        const sto = options.storage === 'session' ? sessionStorage : localStorage;
+        const sto = getStorage(options.storage ?? 'local');
         const prefix = options.prefix ?? '';
 
         applyMigrations(
@@ -84,7 +87,7 @@ export function createStorage<T extends StorageSchema>(
     }
 
     // Registramos el prefix en localStorage
-    const sto = options?.storage === 'session' ? sessionStorage : localStorage;
+    const sto = getStorage(options?.storage ?? 'local');
     registerPrefix(options?.prefix ?? '', sto);
     registerSchema(options?.prefix ?? '', schema, sto);
 

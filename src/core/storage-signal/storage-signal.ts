@@ -35,7 +35,7 @@ function isQuotaExceededError ( err: unknown ): boolean {
 }
 
 // Obtenemos el valor del localStorage o SessionStorage, sino MemoryStorage
-function getStorage ( type: 'local' | 'session' ): Storage | MemoryStorage {
+export function getStorage ( type: 'local' | 'session' ): Storage | MemoryStorage {
     try {
         const sto = type === 'session' ? sessionStorage : localStorage;
         sto.setItem('__typed_storage_test__', '1');
