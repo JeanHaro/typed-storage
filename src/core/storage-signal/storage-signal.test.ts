@@ -181,6 +181,25 @@ describe('encrypt option', () => {
         signal.set('mi-token');
         expect(signal()).toBe('mi-token');
     });
+
+    it('debe funcionar con texto Unicode (acentos, emojis, otros idiomas)', () => {
+        const signal = createStorageSignal('nombre', '', {
+            encrypt: true,
+            secret: 'mi-clave'
+        });
+
+        const textosUnicode = [
+            'José García Muñoz',
+            '日本語のテキスト',
+            '🎉🚀✨ emojis',
+            'café, niño, ñandú'
+        ];
+
+        for (const texto of textosUnicode) {
+            signal.set(texto);
+            expect(signal()).toBe(texto);
+        }
+    });
 });
 
 // Compress + Encrypt

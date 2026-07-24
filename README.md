@@ -1014,6 +1014,19 @@ The `secret` you pass lives in your JavaScript code, which runs in the user's br
 
 This is a fundamental limitation of any frontend-only encryption — not a flaw specific to typed-storage's XOR implementation.
 
+### Full Unicode support
+
+`encrypt` correctly handles any Unicode content — accented characters, non-Latin scripts, emojis — by encoding to UTF-8 bytes before applying XOR and Base64, rather than operating on raw UTF-16 code units. This avoids `btoa()` errors that a naive byte-unsafe XOR implementation would otherwise throw for any non-ASCII content:
+
+```typescript
+const secureStorage = createStorage({
+    nombre: ''
+}, { encrypt: true, secret: 'your-secret-key' });
+
+secureStorage.nombre.set('José García 日本語 🎉');
+secureStorage.nombre(); // → 'José García 日本語 🎉' — round-trips correctly
+```
+
 ### For real security with auth tokens
 
 ```typescript
