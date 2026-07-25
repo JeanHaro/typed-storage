@@ -492,6 +492,37 @@ appStorage.note.set({ title: '' });
 //    (not a raw JSON array of Zod issues)
 ```
 
+### `ValidationError` — structured access to validation failures
+
+`.set()` throws a `ValidationError` (not a plain `Error`) when validation fails, exposing the field name and clean message as separate properties — so you don't have to parse the full error string to show a clean message in your UI:
+
+```typescript
+import { ValidationError } from 'typed-storage';
+
+try {
+    appStorage.note.set({ title: '' });
+} catch (err) {
+    if (err instanceof ValidationError) {
+        console.log(err.field);        // 'note'
+        console.log(err.cleanMessage); // 'Title cannot be empty' — ready to show to the user
+        console.log(err.message);      // full context, useful for logs/debugging:
+                                        // 'typed-storage: valor inválido para "note": Title cannot be empty'
+    }
+}
+```
+
+```typescript
+// Real example — showing a clean message in an Angular/React form:
+try {
+    draftStorage.currentNote.set(updatedNote);
+    errorMessage.set('');
+} catch (err) {
+    if (err instanceof ValidationError) {
+        errorMessage.set(err.cleanMessage); // just "Title cannot be empty", not the full string
+    }
+}
+```
+
 ### Zod is optional, not a hard dependency
 
 `typed-storage` doesn't import Zod internally — it only expects the object passed to `validate[key]` to have a `safeParse(value)` method that returns `{ success: boolean, error?: any }`, which is exactly Zod's schema interface. This means:
@@ -1147,6 +1178,16 @@ Creates a storage object from a schema. Returns a `StorageResult<T>` with one `S
 ### `computed(signals, compute)`
 
 Combines one or more `StorageSignal`s into a derived reactive value. Returns a function that recomputes on every call.
+
+### `ValidationError`
+
+Thrown by `.set()` when `validate` is configured and the value fails validation. Extends `Error`.
+
+| Member | Description |
+|--------|-------------|
+| `message` | Full context string, e.g. `typed-storage: valor inválido para "note": Title cannot be empty` |
+| `field` | The schema key that failed validation |
+| `cleanMessage` | Just the validator's message, ready to display in a UI without parsing |
 
 ### `StorageSignal<T>`
 

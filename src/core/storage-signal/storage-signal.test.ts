@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createStorageSignal } from './storage-signal.js';
 import { z } from 'zod';
+import { ValidationError } from '../validation-error.js';
 
 describe('createStorageSignal', () => {
      // Limpia localStorage antes de cada test
@@ -337,6 +338,28 @@ describe('validate option', () => {
             expect(err.message).toContain('El título no puede estar vacío');
             expect(err.message).not.toContain('"code"');
             expect(err.message).not.toContain('"path"');
+        }
+    });
+
+    it('debe lanzar un ValidationError con .field y .cleanMessage separados', () => {
+        const noteSignal = createStorageSignal('note', { title: '' }, {
+            validate: {
+                note: z.object({
+                    title: z.string().min(1, 'El título no puede estar vacío')
+                })
+            }
+        });
+
+        try {
+            noteSignal.set({ title: '' });
+            expect.fail('debió lanzar un error');
+        } catch (err: any) {
+            expect(err).toBeInstanceOf(ValidationError);
+            expect(err.field).toBe('note');
+            expect(err.cleanMessage).toBe('El título no puede estar vacío');
+            // El .message completo sigue teniendo el contexto para debug
+            expect(err.message).toContain('typed-storage');
+            expect(err.message).toContain('note');
         }
     });
 });

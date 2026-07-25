@@ -17,6 +17,8 @@ import {
 
 // Validate
 import { validateValue } from "../../features/validate-schema.js";
+// Error
+import { ValidationError } from '../validation-error.js';
 
 // Quota
 import { getUsagePercent } from "../../features/quota-monitor.js";
@@ -136,7 +138,7 @@ export function createStorageSignal<T>(
         const validation = validateValue(newValue, validator);
 
         if ( !validation.valid ) {
-            throw new Error(`typed-storage: valor inválido para "${originalKey}": ${validation.error}`);
+            throw new ValidationError(originalKey, validation.error!);
         }
 
         const oldValue = currentValue; // capturamos el valor anterior
