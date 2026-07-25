@@ -34,6 +34,10 @@ function isQuotaExceededError ( err: unknown ): boolean {
     );
 }
 
+// Instancias compartidas de MemoryStorage — una por tipo (local/session)
+let sharedMemoryStorageLocal: MemoryStorage | null = null;
+let sharedMemoryStorageSession: MemoryStorage | null = null;
+
 // Obtenemos el valor del localStorage o SessionStorage, sino MemoryStorage
 export function getStorage ( type: 'local' | 'session' ): Storage | MemoryStorage {
     try {
@@ -45,7 +49,19 @@ export function getStorage ( type: 'local' | 'session' ): Storage | MemoryStorag
     } catch {
         console.warn('Storage no disponible, usando memoria como fallback');
 
-        return new MemoryStorage();
+        // Reutiliza la MISMA instancia para todos los que pidan el mismo tipo,
+        // así todos comparten los mismos datos en memoria
+        if (type === 'session') {
+            if (!sharedMemoryStorageSession) {
+                sharedMemoryStorageSession = new MemoryStorage();
+            }
+            return sharedMemoryStorageSession;
+        } else {
+            if (!sharedMemoryStorageLocal) {
+                sharedMemoryStorageLocal = new MemoryStorage();
+            }
+            return sharedMemoryStorageLocal;
+        }
     }
 }
 

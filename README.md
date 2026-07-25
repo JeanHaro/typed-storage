@@ -725,6 +725,8 @@ With onQuotaWarning     → recalculates total usage on every .set() call
 
 If `localStorage`/`sessionStorage` is unavailable (Safari private browsing with strict settings, storage disabled by policy, etc.), `typed-storage` transparently falls back to an in-memory implementation — **at every level**, not just when reading/writing individual keys. This includes internal operations like registering the schema, applying migrations, the `__once` registry cleanup on `destroy()`, and `archive()`/`restore()`. Your app keeps working (values just won't persist across reloads) instead of crashing with an uncaught storage error.
 
+The in-memory fallback is a single shared instance per storage type (`local`/`session`) — every signal and every internal operation reads and writes the same in-memory data, so things like `archive()` correctly find data written by individual signals, and `setRoute()`'s `__once` tracking stays consistent across your whole app, even when running entirely without real browser storage.
+
 ## 🔄 Schema Migrations
 
 When your schema changes between versions, migrations ensure users don't lose their data.

@@ -493,4 +493,23 @@ describe('createStorage() debe funcionar cuando localStorage falla completamente
 
         setItemSpy.mockRestore();
     });
+
+    it('archive() debe encontrar datos guardados por signals cuando localStorage falla (MemoryStorage compartido)', async () => {
+        const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(() => {
+                throw new DOMException('acceso denegado', 'SecurityError');
+            });
+
+        const storage = createStorage({
+            formDraft: { title: '' }
+        }, { prefix: 'shared-memory-test' });
+
+        storage.formDraft.set({ title: 'Guardado en memoria' });
+
+        // Si MemoryStorage NO estuviera compartido, archive() no encontraría
+        // el rawValue guardado por el signal, y no llamaría a dbSet
+        await expect(storage.archive()).resolves.not.toThrow();
+
+        setItemSpy.mockRestore();
+    });
 });
