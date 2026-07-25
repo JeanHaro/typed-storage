@@ -319,6 +319,26 @@ describe('validate option', () => {
         expect(() => ageSignal.set(200)).toThrow(/valor inválido/);
         expect(() => ageSignal.set(30)).not.toThrow();
     });
+
+    it('debe extraer un mensaje limpio de Zod, no el JSON crudo de issues', () => {
+        const noteSignal = createStorageSignal('note', { title: '' }, {
+            validate: {
+                note: z.object({
+                    title: z.string().min(1, 'El título no puede estar vacío')
+                })
+            }
+        });
+
+        try {
+            noteSignal.set({ title: '' });
+            expect.fail('debió lanzar un error');
+        } catch (err: any) {
+            // El mensaje debe ser el texto limpio de Zod, no un JSON con "code", "path", etc.
+            expect(err.message).toContain('El título no puede estar vacío');
+            expect(err.message).not.toContain('"code"');
+            expect(err.message).not.toContain('"path"');
+        }
+    });
 });
 
 // Quota

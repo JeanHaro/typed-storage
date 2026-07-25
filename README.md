@@ -472,6 +472,26 @@ appStorage.age.set(-5);
 // ❌ Throws: typed-storage: valor inválido para "age": ...
 ```
 
+### Clean error messages, even with multiple validation issues
+
+When the validator's error object has a Zod-style `issues` array (as `safeParse` produces), `typed-storage` extracts and joins the individual issue messages instead of stringifying the whole error object — so you get a readable message instead of a JSON blob of `{code, path, message, ...}` for every failed rule:
+
+```typescript
+const appStorage = createStorage({
+    note: { title: '' }
+}, {
+    validate: {
+        note: z.object({
+            title: z.string().min(1, 'Title cannot be empty')
+        })
+    }
+});
+
+appStorage.note.set({ title: '' });
+// ❌ Throws: typed-storage: valor inválido para "note": Title cannot be empty
+//    (not a raw JSON array of Zod issues)
+```
+
 ### Zod is optional, not a hard dependency
 
 `typed-storage` doesn't import Zod internally — it only expects the object passed to `validate[key]` to have a `safeParse(value)` method that returns `{ success: boolean, error?: any }`, which is exactly Zod's schema interface. This means:
