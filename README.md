@@ -704,6 +704,25 @@ useEffect(() => {
 }, []);
 ```
 
+`archive()` removes the data from `localStorage` **synchronously**, before doing anything with IndexedDB — so a component that mounts immediately after (e.g. navigating straight to a new note) never reads stale data left behind by a slow IndexedDB write. Only the IndexedDB write itself happens asynchronously afterward.
+
+### ⚠️ Don't combine `archive()`-on-leave with `sync: true` on the same storage
+
+`archive()` calls `.remove()` on each key, which — with `sync: true` — dispatches a real cross-tab `storage` event. If another tab is actively editing the same data (e.g. two tabs open on the same draft, relying on `conflictResolution: 'timestamp'`), that tab will see the data disappear the moment the first tab archives it, even though the second tab is still using it. These two features solve different problems and don't compose safely on the same storage:
+
+```
+sync + conflictResolution  → assumes multiple tabs may be actively 
+                              using the same data at the same time
+archive()-on-leave          → assumes you're the only one using the 
+                              data and it's safe to move away
+
+If you need both patterns in the same app, use them on DIFFERENT
+keys/storages rather than the same one. For small values (like a
+single note's draft), archiving usually isn't worth it anyway —
+archive() is meant for genuinely large data; reach for it only
+when the data doesn't also need live multi-tab collaboration.
+```
+
 ---
 
 ## 🔁 Automatic fallback to IndexedDB on quota exceeded
