@@ -162,17 +162,23 @@ export function createStorage<T extends StorageSchema>(
     }
 
     result.archive = async () => {
-        const db = await openDB('typed-storage-archive');
+        const rawValues: Record<string, string> = {};
 
+        // Primero: captura y BORRA de localStorage INMEDIATAMENTE (síncrono)
         for (const key of keys) {
-            const rawValue = sto.getItem(
-                options?.prefix ? `${options.prefix}:${key}` : key
-            );
-
+            const fullKey = options?.prefix ? `${options.prefix}:${key}` : key;
+            const rawValue = sto.getItem(fullKey);
+            
             if (rawValue) {
-                await dbSet(db, `${options?.prefix ?? ''}:${key}`, rawValue);
-                result[key].remove(); // libera espacio real en localStorage
+                rawValues[key] = rawValue;
+                result[key].remove();
             }
+        }
+
+        // Después: guarda en IndexedDB (puede tardar, ya no bloquea nada)
+        const db = await openDB('typed-storage-archive');
+        for (const key of Object.keys(rawValues)) {
+            await dbSet(db, `${options?.prefix ?? ''}:${key}`, rawValues[key]);
         }
     };
 

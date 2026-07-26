@@ -400,6 +400,22 @@ describe('archive() y restore()', () => {
         await storage.restore();
         expect(storage.formDraft()).toEqual({ title: 'Mi borrador secreto y repetitivo repetitivo' });
     });
+
+    it('archive() debe borrar localStorage ANTES de terminar el guardado en IndexedDB (sin condición de carrera)', async () => {
+        const storage = createStorage({
+            formDraft: { title: '' }
+        }, { prefix: 'archive-race-test' });
+
+        storage.formDraft.set({ title: 'Nota vieja' });
+
+        const archivePromise = storage.archive(); // NO esperamos todavía
+
+        // Justo después de llamar archive() (antes de que termine), 
+        // localStorage YA debe estar limpio — porque el remove() es síncrono
+        expect(localStorage.getItem('archive-race-test:formDraft')).toBeNull();
+
+        await archivePromise; // ahora sí esperamos que termine todo
+    });
 });
 
 // Plugins
